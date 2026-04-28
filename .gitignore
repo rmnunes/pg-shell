@@ -6,9 +6,11 @@ Cargo.lock.bak
 # Node
 node_modules/
 dist/
+dist-node/
 .vite/
 *.log
 .pnpm-store/
+*.tsbuildinfo
 
 # Tauri
 src-tauri/target/
