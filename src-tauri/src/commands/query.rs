@@ -128,7 +128,8 @@ pub async fn query_execute(
             }
         };
 
-        let result = execute_streaming(pool, sql, start_emitter, batch_emitter, command_emitter).await;
+        let result =
+            execute_streaming(pool, sql, start_emitter, batch_emitter, command_emitter).await;
 
         registry.remove(&qid);
 
@@ -169,10 +170,7 @@ pub async fn query_execute(
 }
 
 #[tauri::command]
-pub async fn query_cancel(
-    query_id: String,
-    state: State<'_, AppState>,
-) -> AppResult<bool> {
+pub async fn query_cancel(query_id: String, state: State<'_, AppState>) -> AppResult<bool> {
     let active = match state.active_queries.get(&query_id) {
         Some(a) => a.clone(),
         None => return Ok(false),

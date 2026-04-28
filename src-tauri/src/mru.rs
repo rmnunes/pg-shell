@@ -39,8 +39,8 @@ pub struct MruStore {
 
 impl MruStore {
     pub fn open_default() -> Result<Self, MruError> {
-        let dirs = ProjectDirs::from("dev", "pg-shell", "pg-shell")
-            .ok_or(MruError::NoAppDataDir)?;
+        let dirs =
+            ProjectDirs::from("dev", "pg-shell", "pg-shell").ok_or(MruError::NoAppDataDir)?;
         let dir = dirs.config_dir().to_path_buf();
         std::fs::create_dir_all(&dir)?;
         Self::open_at(dir.join("mru.sqlite"))
@@ -65,12 +65,7 @@ impl MruStore {
         })
     }
 
-    pub fn record(
-        &self,
-        profile_id: &str,
-        kind: &str,
-        identifier: &str,
-    ) -> Result<(), MruError> {
+    pub fn record(&self, profile_id: &str, kind: &str, identifier: &str) -> Result<(), MruError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
@@ -90,14 +85,10 @@ impl MruStore {
     /// All accept counts for a profile, keyed by `(kind, identifier)`. The
     /// map is small (bounded by what the user has actually accepted) so we
     /// materialize it eagerly and keep lookups inline for the scoring pass.
-    pub fn counts_for(
-        &self,
-        profile_id: &str,
-    ) -> Result<HashMap<(String, String), i64>, MruError> {
+    pub fn counts_for(&self, profile_id: &str) -> Result<HashMap<(String, String), i64>, MruError> {
         let conn = self.conn.lock();
-        let mut stmt = conn.prepare(
-            "SELECT kind, identifier, accept_count FROM mru WHERE profile_id = ?1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT kind, identifier, accept_count FROM mru WHERE profile_id = ?1")?;
         let rows = stmt.query_map(params![profile_id], |r| {
             Ok((
                 (r.get::<_, String>(0)?, r.get::<_, String>(1)?),

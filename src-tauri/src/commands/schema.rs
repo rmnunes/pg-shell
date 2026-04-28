@@ -63,7 +63,11 @@ fn schema_node(s: &Schema) -> TreeNode {
         kind: TreeNodeKind::Schema,
         path: vec![s.name.clone()],
         label: s.name.clone(),
-        detail: if s.owner.is_empty() { None } else { Some(format!("owner: {}", s.owner)) },
+        detail: if s.owner.is_empty() {
+            None
+        } else {
+            Some(format!("owner: {}", s.owner))
+        },
         expandable: true,
     }
 }
@@ -117,7 +121,9 @@ fn relation_node(r: &Relation) -> TreeNode {
         RelationKind::ForeignTable => TreeNodeKind::ForeignTable,
     };
     let category = match r.kind {
-        RelationKind::Table | RelationKind::PartitionedTable | RelationKind::ForeignTable => "tables",
+        RelationKind::Table | RelationKind::PartitionedTable | RelationKind::ForeignTable => {
+            "tables"
+        }
         RelationKind::View => "views",
         RelationKind::MaterializedView => "matviews",
     };
@@ -139,7 +145,11 @@ fn function_node(f: &Function) -> TreeNode {
     };
     TreeNode {
         kind,
-        path: vec![f.schema.clone(), "functions".into(), format!("{}({})", f.name, f.args)],
+        path: vec![
+            f.schema.clone(),
+            "functions".into(),
+            format!("{}({})", f.name, f.args),
+        ],
         label: f.name.clone(),
         detail: Some(format!("({}) \u{2192} {}", f.args, f.result)),
         expandable: false,
@@ -309,7 +319,8 @@ pub async fn schema_browse(
         .pool(&profile_id)
         .ok_or_else(|| AppError::new("not_connected", "no active connection"))?;
 
-    let sc_err = |e: pg_schema_cache::SchemaCacheError| AppError::new("schema_cache", e.to_string());
+    let sc_err =
+        |e: pg_schema_cache::SchemaCacheError| AppError::new("schema_cache", e.to_string());
 
     let out: Vec<TreeNode> = match path.as_slice() {
         [] => {
@@ -385,7 +396,9 @@ pub async fn schema_browse(
                     .columns(&profile_id, &pool, schema, relation)
                     .await
                     .map_err(sc_err)?;
-                cols.iter().map(|c| column_node(schema, relation, category, c)).collect()
+                cols.iter()
+                    .map(|c| column_node(schema, relation, category, c))
+                    .collect()
             }
         }
         [schema, category, relation, subcat] if category == "tables" => match subcat.as_str() {
@@ -395,7 +408,9 @@ pub async fn schema_browse(
                     .columns(&profile_id, &pool, schema, relation)
                     .await
                     .map_err(sc_err)?;
-                cols.iter().map(|c| column_node(schema, relation, category, c)).collect()
+                cols.iter()
+                    .map(|c| column_node(schema, relation, category, c))
+                    .collect()
             }
             "indexes" => {
                 let idx = state
@@ -433,7 +448,11 @@ pub async fn schema_refresh(
     match path.as_deref() {
         None | Some([]) => state.schema_cache.invalidate_profile(&profile_id),
         Some([schema]) => state.schema_cache.invalidate_schema(&profile_id, schema),
-        Some([schema, _, relation]) => state.schema_cache.invalidate_relation(&profile_id, schema, relation),
+        Some([schema, _, relation]) => {
+            state
+                .schema_cache
+                .invalidate_relation(&profile_id, schema, relation)
+        }
         _ => state.schema_cache.invalidate_profile(&profile_id),
     }
     Ok(())

@@ -78,10 +78,7 @@ pub fn connection_update(
 }
 
 #[tauri::command]
-pub async fn connection_delete(
-    id: String,
-    state: State<'_, AppState>,
-) -> AppResult<()> {
+pub async fn connection_delete(id: String, state: State<'_, AppState>) -> AppResult<()> {
     state.connections.disconnect(&id).await;
     PasswordStore::delete(&id).map_err(|e| AppError::new("keychain", e.to_string()))?;
     state.profiles.delete(&id)?;
@@ -132,10 +129,7 @@ pub async fn connection_connect(
 }
 
 #[tauri::command]
-pub async fn connection_disconnect(
-    id: String,
-    state: State<'_, AppState>,
-) -> AppResult<()> {
+pub async fn connection_disconnect(id: String, state: State<'_, AppState>) -> AppResult<()> {
     state.connections.disconnect(&id).await;
     state.schema_cache.drop_profile(&id);
     Ok(())

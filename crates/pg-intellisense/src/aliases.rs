@@ -66,16 +66,14 @@ fn parse_ref(toks: &[&Token<'_>], i: &mut usize) -> Option<FromBinding> {
     *i += 1;
 
     // Optional schema qualifier: `schema.relation`.
-    let (schema, relation) = if *i + 1 < toks.len()
-        && toks[*i].kind == TokKind::Dot
-        && is_ident_like(toks[*i + 1])
-    {
-        let rel = toks[*i + 1].ident_text();
-        *i += 2;
-        (Some(first_text), rel)
-    } else {
-        (None, first_text)
-    };
+    let (schema, relation) =
+        if *i + 1 < toks.len() && toks[*i].kind == TokKind::Dot && is_ident_like(toks[*i + 1]) {
+            let rel = toks[*i + 1].ident_text();
+            *i += 2;
+            (Some(first_text), rel)
+        } else {
+            (None, first_text)
+        };
 
     // Subquery in place of a table reference — skip to matching paren and treat
     // as opaque (no binding produced). Callers still get sibling bindings.

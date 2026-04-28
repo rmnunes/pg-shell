@@ -115,11 +115,10 @@ fn connect_options(profile: &Profile, password: &str) -> PgConnectOptions {
 }
 
 async fn server_info(pool: &PgPool) -> Result<ServerInfo, sqlx::Error> {
-    let row = sqlx::query(
-        "SELECT version() AS v, current_database() AS db, current_user::text AS u",
-    )
-    .fetch_one(pool)
-    .await?;
+    let row =
+        sqlx::query("SELECT version() AS v, current_database() AS db, current_user::text AS u")
+            .fetch_one(pool)
+            .await?;
     Ok(ServerInfo {
         server_version: row.try_get::<String, _>("v")?,
         current_database: row.try_get::<String, _>("db")?,

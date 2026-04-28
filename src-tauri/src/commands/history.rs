@@ -21,10 +21,7 @@ pub async fn history_list(
 }
 
 #[tauri::command]
-pub async fn history_clear(
-    profile_id: String,
-    state: State<'_, AppState>,
-) -> AppResult<u64> {
+pub async fn history_clear(profile_id: String, state: State<'_, AppState>) -> AppResult<u64> {
     state
         .history
         .clear(&profile_id)

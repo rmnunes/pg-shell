@@ -49,8 +49,8 @@ pub struct HistoryStore {
 
 impl HistoryStore {
     pub fn open_default() -> Result<Self, HistoryError> {
-        let dirs = ProjectDirs::from("dev", "pg-shell", "pg-shell")
-            .ok_or(HistoryError::NoAppDataDir)?;
+        let dirs =
+            ProjectDirs::from("dev", "pg-shell", "pg-shell").ok_or(HistoryError::NoAppDataDir)?;
         let dir = dirs.config_dir().to_path_buf();
         std::fs::create_dir_all(&dir)?;
         Self::open_at(dir.join("history.sqlite"))
@@ -160,7 +160,10 @@ impl HistoryStore {
 
     pub fn clear(&self, profile_id: &str) -> Result<u64, HistoryError> {
         let conn = self.conn.lock();
-        let n = conn.execute("DELETE FROM history WHERE profile_id = ?1", params![profile_id])?;
+        let n = conn.execute(
+            "DELETE FROM history WHERE profile_id = ?1",
+            params![profile_id],
+        )?;
         Ok(n as u64)
     }
 }

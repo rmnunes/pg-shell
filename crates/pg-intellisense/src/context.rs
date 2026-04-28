@@ -217,7 +217,12 @@ mod tests {
         // Cursor just after the dot.
         let cursor = "SELECT u.".len();
         let (k, _) = ctx(sql, cursor);
-        assert_eq!(k, ContextKind::Qualified { qualifier: "u".into() });
+        assert_eq!(
+            k,
+            ContextKind::Qualified {
+                qualifier: "u".into()
+            }
+        );
     }
 
     #[test]

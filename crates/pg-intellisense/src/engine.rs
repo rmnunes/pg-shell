@@ -113,10 +113,36 @@ fn ast_bindings(_doc: &str) -> Option<Vec<crate::aliases::FromBinding>> {
 }
 
 const TOP_SUGGESTION_KEYWORDS: &[&str] = &[
-    "select", "from", "where", "join", "left", "inner", "group by", "order by", "having",
-    "limit", "insert into", "update", "delete from", "values", "returning", "with", "as",
-    "and", "or", "not", "null", "case", "when", "then", "else", "end", "distinct",
-    "union", "except", "intersect",
+    "select",
+    "from",
+    "where",
+    "join",
+    "left",
+    "inner",
+    "group by",
+    "order by",
+    "having",
+    "limit",
+    "insert into",
+    "update",
+    "delete from",
+    "values",
+    "returning",
+    "with",
+    "as",
+    "and",
+    "or",
+    "not",
+    "null",
+    "case",
+    "when",
+    "then",
+    "else",
+    "end",
+    "distinct",
+    "union",
+    "except",
+    "intersect",
 ];
 
 pub fn complete(doc: &str, cursor_offset: usize, view: &SchemaView) -> Vec<CompletionItem> {
@@ -140,11 +166,11 @@ pub fn complete(doc: &str, cursor_offset: usize, view: &SchemaView) -> Vec<Compl
             // FROM parser (common when the buffer is mid-edit), they'd
             // otherwise see nothing.
             let qi = qualifier.to_ascii_lowercase();
-            let alias_hit = bindings
+            let alias_hit = bindings.iter().find(|b| b.alias.to_ascii_lowercase() == qi);
+            let is_known_schema = view
+                .schemas
                 .iter()
-                .find(|b| b.alias.to_ascii_lowercase() == qi);
-            let is_known_schema =
-                view.schemas.iter().any(|s| s.eq_ignore_ascii_case(qualifier));
+                .any(|s| s.eq_ignore_ascii_case(qualifier));
 
             if let Some(b) = alias_hit {
                 collect_columns_for(
@@ -200,7 +226,15 @@ pub fn complete(doc: &str, cursor_offset: usize, view: &SchemaView) -> Vec<Compl
         ContextKind::ColumnList => {
             // Columns from relations in FROM.
             for b in &bindings {
-                collect_columns_for(&mut out, &ctx.kind, &prefix, &b.schema, &b.relation, view, &replace);
+                collect_columns_for(
+                    &mut out,
+                    &ctx.kind,
+                    &prefix,
+                    &b.schema,
+                    &b.relation,
+                    view,
+                    &replace,
+                );
                 // Also surface the alias itself so `u.` can be completed from `u`.
                 push_alias(&mut out, &ctx.kind, &prefix, b, &replace);
             }
@@ -209,7 +243,15 @@ pub fn complete(doc: &str, cursor_offset: usize, view: &SchemaView) -> Vec<Compl
         }
         ContextKind::Expression => {
             for b in &bindings {
-                collect_columns_for(&mut out, &ctx.kind, &prefix, &b.schema, &b.relation, view, &replace);
+                collect_columns_for(
+                    &mut out,
+                    &ctx.kind,
+                    &prefix,
+                    &b.schema,
+                    &b.relation,
+                    view,
+                    &replace,
+                );
                 push_alias(&mut out, &ctx.kind, &prefix, b, &replace);
             }
             collect_functions(&mut out, &ctx.kind, &prefix, None, view, &replace);
@@ -457,7 +499,11 @@ fn push_alias(
 
 fn finalize(mut items: Vec<CompletionItem>) -> Vec<CompletionItem> {
     // Stable sort so duplicate labels resolve deterministically.
-    items.sort_by(|a, b| b.sort_score.cmp(&a.sort_score).then_with(|| a.label.cmp(&b.label)));
+    items.sort_by(|a, b| {
+        b.sort_score
+            .cmp(&a.sort_score)
+            .then_with(|| a.label.cmp(&b.label))
+    });
     // Cap to a reasonable ceiling to keep IPC payload and UI responsive.
     items.truncate(200);
     items
@@ -485,16 +531,53 @@ mod tests {
         SchemaView {
             schemas: vec!["public".into(), "auth".into()],
             relations: vec![
-                RelationLite { schema: "public".into(), name: "users".into(), kind: CompletionKind::Table },
-                RelationLite { schema: "public".into(), name: "orders".into(), kind: CompletionKind::Table },
-                RelationLite { schema: "auth".into(), name: "sessions".into(), kind: CompletionKind::Table },
+                RelationLite {
+                    schema: "public".into(),
+                    name: "users".into(),
+                    kind: CompletionKind::Table,
+                },
+                RelationLite {
+                    schema: "public".into(),
+                    name: "orders".into(),
+                    kind: CompletionKind::Table,
+                },
+                RelationLite {
+                    schema: "auth".into(),
+                    name: "sessions".into(),
+                    kind: CompletionKind::Table,
+                },
             ],
             columns: vec![
-                ColumnLite { schema: "public".into(), relation: "users".into(), name: "id".into(), type_name: "bigint".into() },
-                ColumnLite { schema: "public".into(), relation: "users".into(), name: "email".into(), type_name: "text".into() },
-                ColumnLite { schema: "public".into(), relation: "users".into(), name: "created_at".into(), type_name: "timestamptz".into() },
-                ColumnLite { schema: "public".into(), relation: "orders".into(), name: "id".into(), type_name: "bigint".into() },
-                ColumnLite { schema: "public".into(), relation: "orders".into(), name: "user_id".into(), type_name: "bigint".into() },
+                ColumnLite {
+                    schema: "public".into(),
+                    relation: "users".into(),
+                    name: "id".into(),
+                    type_name: "bigint".into(),
+                },
+                ColumnLite {
+                    schema: "public".into(),
+                    relation: "users".into(),
+                    name: "email".into(),
+                    type_name: "text".into(),
+                },
+                ColumnLite {
+                    schema: "public".into(),
+                    relation: "users".into(),
+                    name: "created_at".into(),
+                    type_name: "timestamptz".into(),
+                },
+                ColumnLite {
+                    schema: "public".into(),
+                    relation: "orders".into(),
+                    name: "id".into(),
+                    type_name: "bigint".into(),
+                },
+                ColumnLite {
+                    schema: "public".into(),
+                    relation: "orders".into(),
+                    name: "user_id".into(),
+                    type_name: "bigint".into(),
+                },
             ],
             functions: vec![],
         }
@@ -542,7 +625,13 @@ mod tests {
         let v = sample_view();
         let items = complete(sql, cursor, &v);
         let labels: Vec<_> = items.iter().map(|i| i.label.clone()).collect();
-        assert!(labels.contains(&"sessions".to_string()), "labels: {labels:?}");
-        assert!(!labels.contains(&"users".to_string()), "should not include public.users");
+        assert!(
+            labels.contains(&"sessions".to_string()),
+            "labels: {labels:?}"
+        );
+        assert!(
+            !labels.contains(&"users".to_string()),
+            "should not include public.users"
+        );
     }
 }

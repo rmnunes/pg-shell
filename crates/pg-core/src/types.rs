@@ -118,7 +118,9 @@ fn cell_to_json(row: &PgRow, idx: usize, type_name: &str) -> Value {
             _ => Value::Null,
         },
         "FLOAT8" => match row.try_get::<Option<f64>, _>(idx) {
-            Ok(Some(v)) => Number::from_f64(v).map(Value::Number).unwrap_or(Value::Null),
+            Ok(Some(v)) => Number::from_f64(v)
+                .map(Value::Number)
+                .unwrap_or(Value::Null),
             _ => Value::Null,
         },
         "NUMERIC" | "MONEY" => match row.try_get::<Option<BigDecimal>, _>(idx) {
@@ -159,16 +161,10 @@ fn cell_to_json(row: &PgRow, idx: usize, type_name: &str) -> Value {
                 hex_preview.push_str(&hex::encode(preview));
                 Value::Object(
                     [
-                        (
-                            "kind".to_string(),
-                            Value::String("bytea".to_string()),
-                        ),
+                        ("kind".to_string(), Value::String("bytea".to_string())),
                         ("size".to_string(), Value::Number(size.into())),
                         ("hex".to_string(), Value::String(hex_preview)),
-                        (
-                            "truncated".to_string(),
-                            Value::Bool(size > MAX),
-                        ),
+                        ("truncated".to_string(), Value::Bool(size > MAX)),
                     ]
                     .into_iter()
                     .collect(),
@@ -225,7 +221,11 @@ fn array_cell(row: &PgRow, idx: usize, type_name: &str) -> Value {
             _ => Value::Null,
         },
         "UUID[]" => match row.try_get::<Option<Vec<uuid::Uuid>>, _>(idx) {
-            Ok(Some(v)) => Value::Array(v.into_iter().map(|u| Value::String(u.to_string())).collect()),
+            Ok(Some(v)) => Value::Array(
+                v.into_iter()
+                    .map(|u| Value::String(u.to_string()))
+                    .collect(),
+            ),
             _ => Value::Null,
         },
         _ => match row.try_get::<Option<Vec<String>>, _>(idx) {

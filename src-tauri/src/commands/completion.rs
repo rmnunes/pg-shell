@@ -61,7 +61,11 @@ pub async fn completion_get(
                 it.sort_score += MruStore::boost(*c);
             }
         }
-        items.sort_by(|a, b| b.sort_score.cmp(&a.sort_score).then_with(|| a.label.cmp(&b.label)));
+        items.sort_by(|a, b| {
+            b.sort_score
+                .cmp(&a.sort_score)
+                .then_with(|| a.label.cmp(&b.label))
+        });
     }
 
     Ok(items)
@@ -104,9 +108,9 @@ fn to_view(s: &Snapshot) -> SchemaView {
             schema: r.schema.clone(),
             name: r.name.clone(),
             kind: match r.kind {
-                RelationKind::Table | RelationKind::PartitionedTable | RelationKind::ForeignTable => {
-                    CompletionKind::Table
-                }
+                RelationKind::Table
+                | RelationKind::PartitionedTable
+                | RelationKind::ForeignTable => CompletionKind::Table,
                 RelationKind::View => CompletionKind::View,
                 RelationKind::MaterializedView => CompletionKind::MaterializedView,
             },

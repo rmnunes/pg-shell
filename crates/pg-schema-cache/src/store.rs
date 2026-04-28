@@ -256,11 +256,7 @@ impl SchemaCache {
     /// Runs all schema-scoped fetches concurrently but caps concurrency
     /// implicitly via the underlying pool's max_connections. Errors for a
     /// single schema are logged (via `tracing`) but don't abort the warm.
-    pub async fn warm(
-        &self,
-        profile_id: &str,
-        pool: &PgPool,
-    ) -> Result<(), SchemaCacheError> {
+    pub async fn warm(&self, profile_id: &str, pool: &PgPool) -> Result<(), SchemaCacheError> {
         let schemas = self.schemas(profile_id, pool).await?;
         for s in schemas {
             if let Err(e) = self.relations(profile_id, pool, &s.name).await {

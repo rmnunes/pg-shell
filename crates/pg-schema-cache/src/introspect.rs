@@ -100,10 +100,7 @@ pub async fn list_columns(
         .collect())
 }
 
-pub async fn list_sequences(
-    pool: &PgPool,
-    schema: &str,
-) -> Result<Vec<Sequence>, sqlx::Error> {
+pub async fn list_sequences(pool: &PgPool, schema: &str) -> Result<Vec<Sequence>, sqlx::Error> {
     let rows = sqlx::query(
         "SELECT c.relname AS name, COALESCE(r.rolname, '') AS owner
            FROM pg_class c
@@ -137,10 +134,7 @@ pub async fn list_sequences(
 ///   bit 5 (32) TRUNCATE event
 ///   bit 6 (64) INSTEAD OF
 /// We decode timing + event into readable strings server-side.
-pub async fn list_triggers(
-    pool: &PgPool,
-    schema: &str,
-) -> Result<Vec<Trigger>, sqlx::Error> {
+pub async fn list_triggers(pool: &PgPool, schema: &str) -> Result<Vec<Trigger>, sqlx::Error> {
     let rows = sqlx::query(
         "SELECT n.nspname AS schema,
                 c.relname AS table_name,
@@ -217,10 +211,7 @@ pub async fn list_indexes(
         .collect())
 }
 
-pub async fn list_functions(
-    pool: &PgPool,
-    schema: &str,
-) -> Result<Vec<Function>, sqlx::Error> {
+pub async fn list_functions(pool: &PgPool, schema: &str) -> Result<Vec<Function>, sqlx::Error> {
     let rows = sqlx::query(
         "SELECT n.nspname AS schema,
                 p.proname AS name,
@@ -375,7 +366,9 @@ pub(crate) fn quote_ident(ident: &str) -> String {
     let needs_quotes = ident.is_empty()
         || !ident.chars().next().unwrap().is_ascii_lowercase()
             && !matches!(ident.chars().next().unwrap(), 'a'..='z' | '_')
-        || ident.chars().any(|c| !matches!(c, 'a'..='z' | '0'..='9' | '_'));
+        || ident
+            .chars()
+            .any(|c| !matches!(c, 'a'..='z' | '0'..='9' | '_'));
     if needs_quotes {
         format!("\"{}\"", ident.replace('"', "\"\""))
     } else {

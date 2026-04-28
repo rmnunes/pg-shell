@@ -208,4 +208,3 @@ pub async fn cancel_backend(pool: &PgPool, pid: i32) -> Result<bool, ExecError> 
         .await?;
     Ok(res.0)
 }
-

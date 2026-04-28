@@ -119,10 +119,7 @@ pub fn tokenize(input: &str) -> Vec<Token<'_>> {
         }
 
         // Escape-string literal `E'…\…'`.
-        if (c == b'E' || c == b'e')
-            && i + 1 < bytes.len()
-            && bytes[i + 1] == b'\''
-        {
+        if (c == b'E' || c == b'e') && i + 1 < bytes.len() && bytes[i + 1] == b'\'' {
             i += 2;
             while i < bytes.len() {
                 match bytes[i] {
@@ -166,8 +163,7 @@ pub fn tokenize(input: &str) -> Vec<Token<'_>> {
             let tag_start = i + 1;
             let mut tag_end = tag_start;
             while tag_end < bytes.len()
-                && (bytes[tag_end] == b'_'
-                    || (bytes[tag_end] as char).is_ascii_alphanumeric())
+                && (bytes[tag_end] == b'_' || (bytes[tag_end] as char).is_ascii_alphanumeric())
             {
                 tag_end += 1;
             }
@@ -238,13 +234,9 @@ pub fn tokenize(input: &str) -> Vec<Token<'_>> {
 
         // Number: digit-started, allow decimal point and exponent.
         if (c as char).is_ascii_digit()
-            || (c == b'.'
-                && i + 1 < bytes.len()
-                && (bytes[i + 1] as char).is_ascii_digit())
+            || (c == b'.' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit())
         {
-            while i < bytes.len()
-                && ((bytes[i] as char).is_ascii_digit() || bytes[i] == b'.')
-            {
+            while i < bytes.len() && ((bytes[i] as char).is_ascii_digit() || bytes[i] == b'.') {
                 i += 1;
             }
             if i < bytes.len() && (bytes[i] == b'e' || bytes[i] == b'E') {
@@ -280,12 +272,44 @@ pub fn tokenize(input: &str) -> Vec<Token<'_>> {
         // Operator run: `<=`, `>=`, `<>`, `!=`, `::`, `||`, etc.
         if matches!(
             c,
-            b'+' | b'-' | b'*' | b'/' | b'%' | b'<' | b'>' | b'=' | b'!' | b'|' | b':' | b'@' | b'#' | b'~' | b'&' | b'^' | b'?' | b'$'
+            b'+' | b'-'
+                | b'*'
+                | b'/'
+                | b'%'
+                | b'<'
+                | b'>'
+                | b'='
+                | b'!'
+                | b'|'
+                | b':'
+                | b'@'
+                | b'#'
+                | b'~'
+                | b'&'
+                | b'^'
+                | b'?'
+                | b'$'
         ) {
             while i < bytes.len()
                 && matches!(
                     bytes[i],
-                    b'+' | b'-' | b'*' | b'/' | b'%' | b'<' | b'>' | b'=' | b'!' | b'|' | b':' | b'@' | b'#' | b'~' | b'&' | b'^' | b'?' | b'$'
+                    b'+' | b'-'
+                        | b'*'
+                        | b'/'
+                        | b'%'
+                        | b'<'
+                        | b'>'
+                        | b'='
+                        | b'!'
+                        | b'|'
+                        | b':'
+                        | b'@'
+                        | b'#'
+                        | b'~'
+                        | b'&'
+                        | b'^'
+                        | b'?'
+                        | b'$'
                 )
             {
                 i += 1;
@@ -462,20 +486,29 @@ mod tests {
     #[test]
     fn quoted_ident_roundtrip() {
         let toks = tokenize(r#"SELECT "My Col" FROM t"#);
-        let q = toks.iter().find(|t| t.kind == TokKind::QuotedIdent).unwrap();
+        let q = toks
+            .iter()
+            .find(|t| t.kind == TokKind::QuotedIdent)
+            .unwrap();
         assert_eq!(q.ident_text(), "My Col");
     }
 
     #[test]
     fn string_literal_with_escaped_quote() {
         let toks = tokenize("SELECT 'it''s fine'");
-        assert_eq!(toks.iter().filter(|t| t.kind == TokKind::StringLit).count(), 1);
+        assert_eq!(
+            toks.iter().filter(|t| t.kind == TokKind::StringLit).count(),
+            1
+        );
     }
 
     #[test]
     fn dollar_quoted_string() {
         let toks = tokenize("SELECT $body$ CREATE TABLE x (a int); $body$");
-        let lits: Vec<_> = toks.iter().filter(|t| t.kind == TokKind::StringLit).collect();
+        let lits: Vec<_> = toks
+            .iter()
+            .filter(|t| t.kind == TokKind::StringLit)
+            .collect();
         assert_eq!(lits.len(), 1);
         assert!(lits[0].text.contains("CREATE TABLE"));
     }
@@ -483,13 +516,19 @@ mod tests {
     #[test]
     fn nested_block_comment() {
         let toks = tokenize("/* outer /* inner */ still outer */ SELECT 1");
-        let comments: Vec<_> = toks.iter().filter(|t| t.kind == TokKind::BlockComment).collect();
+        let comments: Vec<_> = toks
+            .iter()
+            .filter(|t| t.kind == TokKind::BlockComment)
+            .collect();
         assert_eq!(comments.len(), 1);
     }
 
     #[test]
     fn cast_operator_is_single_op() {
-        let toks: Vec<_> = tokenize("SELECT 1::int").into_iter().filter(|t| !t.is_trivia()).collect();
+        let toks: Vec<_> = tokenize("SELECT 1::int")
+            .into_iter()
+            .filter(|t| !t.is_trivia())
+            .collect();
         assert_eq!(toks[2].kind, TokKind::Op);
         assert_eq!(toks[2].text, "::");
     }
