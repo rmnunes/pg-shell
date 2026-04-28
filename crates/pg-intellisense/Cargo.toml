@@ -1,0 +1,23 @@
+[package]
+name = "pg-intellisense"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+# Enables the authoritative libpg_query-based parser path. Requires LLVM on
+# Windows (`winget install LLVM.LLVM` and reopen shell so LIBCLANG_PATH resolves,
+# or set it manually to `C:\Program Files\LLVM\bin`). Left off by default until
+# the Day-5 intellisense milestone so `cargo check --workspace` works without
+# LLVM on fresh machines.
+default = []
+libpg_query = ["dep:pg_query"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+once_cell = { workspace = true }
+pg_query = { workspace = true, optional = true }
