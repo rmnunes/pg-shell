@@ -1,3 +1,7 @@
 {
-  ".": "0.1.0"
+  "src-tauri": "0.1.0",
+  "crates/pg-core": "0.1.0",
+  "crates/pg-intellisense": "0.1.0",
+  "crates/pg-schema-cache": "0.1.0",
+  "crates/pg-profiles": "0.1.0"
 }
