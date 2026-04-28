@@ -45,6 +45,17 @@ jobs:
             .
             src-tauri
 
+      # Tauri's generate_context!() proc macro reads tauri.conf.json at compile
+      # time and resolves frontendDist (../dist). CI starts with no dist/, so
+      # we have to build the frontend before any cargo step that compiles src-tauri.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
       - name: cargo fmt
         run: cargo fmt --all -- --check
 
@@ -53,16 +64,3 @@ jobs:
 
       - name: cargo test
         run: cargo test --workspace --no-fail-fast -- --skip postgres
-
-  frontend:
-    name: Frontend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
