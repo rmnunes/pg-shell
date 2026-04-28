@@ -45,6 +45,7 @@ fn main() {
             commands::connections::connection_update,
             commands::connections::connection_delete,
             commands::connections::connection_test,
+            commands::connections::connection_test_transient,
             commands::connections::connection_connect,
             commands::connections::connection_disconnect,
             commands::connections::connection_password_set,

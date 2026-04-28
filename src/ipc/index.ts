@@ -41,6 +41,13 @@ export async function connectionTest(
   });
 }
 
+export async function connectionTestTransient(
+  input: ProfileInput,
+  password: string,
+): Promise<TestOutcome> {
+  return invoke<TestOutcome>("connection_test_transient", { input, password });
+}
+
 export async function connectionConnect(
   id: string,
   password?: string,

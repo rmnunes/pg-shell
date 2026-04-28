@@ -12,6 +12,7 @@
 
 pub mod aliases;
 pub mod context;
+pub mod ddl;
 pub mod engine;
 #[cfg(feature = "libpg_query")]
 pub mod libpg_query_parse;

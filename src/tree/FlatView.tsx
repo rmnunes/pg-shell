@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { schemaFlat, type FlatRelation, type TreeNodeKind } from "../ipc/schema";
 
 export interface FlatViewProps {
@@ -37,6 +38,22 @@ export default function FlatView({ profileId, onOpenScript, onViewDefinition }: 
   useEffect(() => {
     setRelations(null);
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
+
+  // Auto-refresh after DDL. Filter is preserved; the relation list is
+  // re-fetched silently in place.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ profile_id: string }>("schema:invalidated", (evt) => {
+      if (evt.payload.profile_id !== profileId) return;
+      void load();
+    }).then((u) => {
+      unlisten = u;
+    });
+    return () => {
+      unlisten?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);
 

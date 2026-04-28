@@ -3,6 +3,7 @@ import {
   connectionCreate,
   connectionPasswordSet,
   connectionTest,
+  connectionTestTransient,
   connectionUpdate,
 } from "../ipc";
 import type { ConnectionSummary, ProfileInput, SslMode, TestOutcome } from "../ipc/types";
@@ -41,25 +42,16 @@ export default function ConnectionDialog({ initial, onClose, onSaved }: Props) {
     form.user.trim().length > 0;
 
   const handleTest = async () => {
-    if (!initial && !password) {
-      setStatus({ kind: "err", message: "Enter a password to test a new profile." });
+    if (!password && !initial?.has_password) {
+      setStatus({ kind: "err", message: "Enter a password to test." });
       return;
     }
     setStatus({ kind: "running" });
     try {
-      if (initial) {
-        // For existing profile, keychain lookup happens server-side when password is empty
-        const result = await connectionTest(initial.id, password || undefined);
-        setStatus({ kind: "ok", result });
-      } else {
-        // Creating: test by round-tripping via a temporary create path — simpler, just
-        // create then test. Instead, we require the user to save first for now; gate
-        // Test to existing profiles until a transient test IPC lands.
-        setStatus({
-          kind: "err",
-          message: "Save the profile first, then Test.",
-        });
-      }
+      const result = initial
+        ? await connectionTest(initial.id, password || undefined)
+        : await connectionTestTransient(form, password);
+      setStatus({ kind: "ok", result });
     } catch (e: unknown) {
       const err = e as { message?: string };
       setStatus({ kind: "err", message: err.message ?? String(e) });
@@ -187,7 +179,7 @@ export default function ConnectionDialog({ initial, onClose, onSaved }: Props) {
               `OK · ${status.result.latency_ms}ms · ${status.result.server.server_version.split(" ").slice(0, 2).join(" ")}`}
             {status.kind === "err" && status.message}
           </span>
-          <button disabled={!initial || status.kind === "running"} onClick={handleTest}>
+          <button disabled={!canSubmit || status.kind === "running"} onClick={handleTest}>
             Test
           </button>
           <button onClick={onClose}>Cancel</button>

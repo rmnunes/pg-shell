@@ -97,16 +97,24 @@ Artifacts land in `src-tauri/target/release/bundle/`.
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full sequenced roadmap. Headline items:
 
 - [x] Workspace scaffold, Tauri boots, React shell
-- [x] Connection profiles + keyring
+- [x] Connection profiles + OS keychain (passwords never on disk)
+- [x] Test connection on new and saved profiles
 - [x] Query execution with streaming results
-- [x] Schema introspection + object tree
+- [x] Query cancellation
+- [x] Schema introspection + object tree (Tree + Flat views)
+- [x] Type-aware grid rendering (NULL, jsonb, bytea, timestamptz, numeric)
+- [x] CSV / TSV / JSON export from the results grid
 - [x] Monaco completion provider wired through Tauri IPC
 - [x] Token-based + libpg_query AST partial-parse pipeline
-- [ ] Ranker + MRU persistence
-- [ ] Snippet library + user snippets
-- [ ] Cancellation polish, type-aware grid rendering, CSV/TSV/JSON export
-- [ ] DDL-triggered schema cache refresh
-- [ ] Right-click "Script as SELECT/INSERT", view definition
+- [x] Ranker + MRU persistence (SQLite-backed accept counts)
+- [x] Builtin snippet library (`ssf`, `sf`, `ct`, `j`, `lj`, `cte`, …)
+- [x] Right-click "Script as SELECT / INSERT" + "View Definition"
+- [x] Function signature help
+- [x] DDL-triggered schema cache refresh (object tree auto-updates after `CREATE`/`ALTER`/`DROP`)
+- [ ] User-defined snippets
+- [ ] Auto-alias on table insert (`FROM users` → `FROM users u`)
+- [ ] Cross-CTE column binding, LATERAL join awareness
+- [ ] Refactor-rename, semantic squigglies
 
 ## Contributing
 

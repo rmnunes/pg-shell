@@ -99,6 +99,29 @@ pub async fn connection_test(
     Ok(pg_core::ConnectionManager::test(&profile, &pw).await?)
 }
 
+/// Test a profile's connection params before it's been saved. Lets the New
+/// Connection dialog validate inputs without round-tripping through the
+/// profile store + keychain.
+#[tauri::command]
+pub async fn connection_test_transient(
+    input: ProfileInput,
+    password: String,
+) -> AppResult<TestOutcome> {
+    let probe = Profile {
+        // The id is unused by `test()` — pool key isn't touched on this path.
+        id: String::new(),
+        name: input.name,
+        host: input.host,
+        port: input.port,
+        database: input.database,
+        user: input.user,
+        ssl_mode: input.ssl_mode,
+        app_name: input.app_name,
+        group: input.group,
+    };
+    Ok(pg_core::ConnectionManager::test(&probe, &password).await?)
+}
+
 #[tauri::command]
 pub async fn connection_connect(
     id: String,
