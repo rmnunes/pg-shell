@@ -62,37 +62,45 @@ If you're not sure which crate a change belongs in, the rule of thumb: anything 
 4. Fill in the PR template — especially the "what I tested" section.
 5. CI must be green before review.
 
-## Releases & versioning
+## Releases
 
-Releases are automated via [release-please](https://github.com/googleapis/release-please) and [tauri-action](https://github.com/tauri-apps/tauri-action).
+Releases are tag-triggered. Pushing a `vX.Y.Z` tag to `main` kicks off `.github/workflows/release.yml`, which uses [tauri-action](https://github.com/tauri-apps/tauri-action) to build on Windows / macOS / Linux runners and attach the platform-native bundles to a GitHub Release:
 
-**The flow:**
+- Windows: `.msi` + `.exe` (NSIS)
+- macOS: `.dmg` + `.app.tar.gz`
+- Linux: `.deb` + `.AppImage` + `.rpm`
 
-1. Land commits on `main` using [Conventional Commits](https://www.conventionalcommits.org/):
-   - `feat: …` → minor bump (under v1.0 it's a patch, see config)
-   - `fix: …` → patch bump
-   - `feat!: …` or a `BREAKING CHANGE:` footer → major bump
-   - `chore:`, `docs:`, `refactor:`, `test:` → no version bump
-2. release-please keeps a PR titled `chore(main): release X.Y.Z` open. It bumps `Cargo.toml`, `Cargo.lock`, `package.json`, and `src-tauri/tauri.conf.json`, and updates `CHANGELOG.md`.
-3. **Merging that PR** is the act of releasing. release-please tags `vX.Y.Z` and creates a GitHub Release.
-4. The release event triggers `tauri-action` on Windows / macOS / Linux runners. It builds and uploads:
-   - Windows: `.msi` + `.exe` (NSIS)
-   - macOS: `.dmg` + `.app.tar.gz`
-   - Linux: `.deb` + `.AppImage` + `.rpm`
-5. Users download from the [Releases page](https://github.com/rmnunes/pg-shell/releases).
+Users download from the [Releases page](https://github.com/rmnunes/pg-shell/releases).
 
-**Manual release** (escape hatch — only if release-please is wedged):
+### Cutting a release
+
+Versions live in five places that have to stay in lockstep: `package.json`, `src-tauri/tauri.conf.json`, and the `[package].version` of each Cargo manifest (`src-tauri/Cargo.toml` + the four crates under `crates/`). The `pnpm release` script handles all of them plus regenerating `Cargo.lock`:
 
 ```sh
-# Bump versions in Cargo.toml workspace.package, package.json, src-tauri/tauri.conf.json,
-# update CHANGELOG.md, then:
-git tag v0.1.1
-git push --tags
-# Then create the GitHub Release manually; tauri-action will not fire on bare tag pushes
-# in the current setup — only on releases created by release-please.
+pnpm release patch       # 0.1.0 -> 0.1.1
+pnpm release minor       # 0.1.0 -> 0.2.0
+pnpm release major       # 0.1.0 -> 1.0.0
+pnpm release 1.2.3       # set explicitly
 ```
 
-If you want manual tag-triggered builds, switch the `release.yml` `build` job's trigger to `on: push: tags: ['v*']` and remove the `needs: release-please` gate.
+After the script finishes:
+
+```sh
+git diff                                  # sanity check
+git commit -am "chore: release v0.1.1"
+git tag v0.1.1
+git push --follow-tags
+```
+
+The release workflow takes ~10–15 minutes per OS.
+
+### Versioning rules of thumb
+
+We're pre-1.0, so:
+
+- **Breaking change** (IPC contract, profile JSON shape, persistence format): minor bump.
+- **New feature, bug fix, performance improvement**: patch bump.
+- Once we hit 1.0, switch to standard SemVer.
 
 ## Reporting bugs
 
