@@ -62,6 +62,38 @@ If you're not sure which crate a change belongs in, the rule of thumb: anything 
 4. Fill in the PR template — especially the "what I tested" section.
 5. CI must be green before review.
 
+## Releases & versioning
+
+Releases are automated via [release-please](https://github.com/googleapis/release-please) and [tauri-action](https://github.com/tauri-apps/tauri-action).
+
+**The flow:**
+
+1. Land commits on `main` using [Conventional Commits](https://www.conventionalcommits.org/):
+   - `feat: …` → minor bump (under v1.0 it's a patch, see config)
+   - `fix: …` → patch bump
+   - `feat!: …` or a `BREAKING CHANGE:` footer → major bump
+   - `chore:`, `docs:`, `refactor:`, `test:` → no version bump
+2. release-please keeps a PR titled `chore(main): release X.Y.Z` open. It bumps `Cargo.toml`, `Cargo.lock`, `package.json`, and `src-tauri/tauri.conf.json`, and updates `CHANGELOG.md`.
+3. **Merging that PR** is the act of releasing. release-please tags `vX.Y.Z` and creates a GitHub Release.
+4. The release event triggers `tauri-action` on Windows / macOS / Linux runners. It builds and uploads:
+   - Windows: `.msi` + `.exe` (NSIS)
+   - macOS: `.dmg` + `.app.tar.gz`
+   - Linux: `.deb` + `.AppImage` + `.rpm`
+5. Users download from the [Releases page](https://github.com/rmnunes/pg-shell/releases).
+
+**Manual release** (escape hatch — only if release-please is wedged):
+
+```sh
+# Bump versions in Cargo.toml workspace.package, package.json, src-tauri/tauri.conf.json,
+# update CHANGELOG.md, then:
+git tag v0.1.1
+git push --tags
+# Then create the GitHub Release manually; tauri-action will not fire on bare tag pushes
+# in the current setup — only on releases created by release-please.
+```
+
+If you want manual tag-triggered builds, switch the `release.yml` `build` job's trigger to `on: push: tags: ['v*']` and remove the `needs: release-please` gate.
+
 ## Reporting bugs
 
 Use the GitHub issue templates. For intellisense bugs, **please include the exact SQL buffer and cursor position** — without it we can't reproduce. A `cursor: 47` byte offset or a `|` marker in the SQL works equally well.

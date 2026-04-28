@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Step 1: release-please watches main, opens a "chore(main): release X.Y.Z" PR
+  # that bumps Cargo.toml + Cargo.lock + package.json + tauri.conf.json and
+  # appends to CHANGELOG.md based on Conventional Commits since the last tag.
+  # When the PR is merged, it tags the repo and creates a GitHub Release —
+  # which is what the build job below latches onto.
+  release-please:
+    name: Release-please PR / Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Step 2: when release-please publishes a release, build the Tauri bundles on
+  # each OS and upload them to that release. Users on the Releases page see
+  # the .msi/.nsis (Windows), .dmg/.app (macOS), and .deb/.AppImage (Linux)
+  # next to the auto-generated changelog.
+  build:
+    name: Build (${{ matrix.os }})
+    needs: release-please
+    if: needs.release-please.outputs.release_created
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux Tauri prerequisites
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            src-tauri
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build and upload Tauri bundles
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ needs.release-please.outputs.tag_name }}
+          releaseName: ${{ needs.release-please.outputs.tag_name }}
+          releaseDraft: false
+          prerelease: false
