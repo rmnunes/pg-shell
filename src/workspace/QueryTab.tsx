@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QueryEditor, { type QueryEditorHandle } from "../editor/QueryEditor";
 import CommandsPanel from "../results/CommandsPanel";
 import ResultsGrid from "../results/ResultsGrid";
@@ -91,6 +91,38 @@ export default function QueryTab({ tab }: Props) {
 
   const running = tab.runState.phase === "running";
 
+  const splitRef = useRef<HTMLDivElement | null>(null);
+  const [editorPct, setEditorPct] = useState<number>(() => readSplitPct());
+  const dragging = useRef(false);
+  const onSplitterDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current || !splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const pct = ((e.clientY - rect.top) / rect.height) * 100;
+      const clamped = Math.min(85, Math.max(15, pct));
+      setEditorPct(clamped);
+    };
+    const onUp = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      writeSplitPct(editorPct);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [editorPct]);
+
   return (
     <div className="query-tab">
       <div className="query-toolbar">
@@ -124,7 +156,11 @@ export default function QueryTab({ tab }: Props) {
         <span className="toolbar-spacer" />
         <span className="toolbar-status">{statusLine}</span>
       </div>
-      <div className="query-split">
+      <div
+        className="query-split"
+        ref={splitRef}
+        style={{ gridTemplateRows: `${editorPct}% 6px 1fr` }}
+      >
         <div className="query-editor-pane">
           <QueryEditor
             ref={editorRef}
@@ -135,6 +171,17 @@ export default function QueryTab({ tab }: Props) {
             profileId={tab.profileId}
           />
         </div>
+        <div
+          className="query-splitter"
+          role="separator"
+          aria-orientation="horizontal"
+          title="Drag to resize · double-click to reset"
+          onMouseDown={onSplitterDown}
+          onDoubleClick={() => {
+            setEditorPct(40);
+            writeSplitPct(40);
+          }}
+        />
         <div className="query-results-pane">
           {tab.runState.phase === "error" ? (
             <div className="query-error">{tab.runState.message}</div>
@@ -158,6 +205,28 @@ export default function QueryTab({ tab }: Props) {
       </div>
     </div>
   );
+}
+
+const SPLIT_KEY = "pg-shell.querySplit.editorPct";
+
+function readSplitPct(): number {
+  try {
+    const raw = localStorage.getItem(SPLIT_KEY);
+    if (!raw) return 40;
+    const n = Number.parseFloat(raw);
+    if (!Number.isFinite(n)) return 40;
+    return Math.min(85, Math.max(15, n));
+  } catch {
+    return 40;
+  }
+}
+
+function writeSplitPct(pct: number): void {
+  try {
+    localStorage.setItem(SPLIT_KEY, String(pct));
+  } catch {
+    // ignore
+  }
 }
 
 function statusText(tab: QueryTabState): string {

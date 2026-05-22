@@ -1,8 +1,17 @@
 import type { QueryTabState } from "./tabs";
 
+export interface TabTarget {
+  /** Short label shown in the tab, e.g. "prod-db / orders". */
+  label: string;
+  /** Full server description for the tooltip. */
+  detail: string;
+}
+
 export interface TabStripProps {
   tabs: QueryTabState[];
   activeId: string | null;
+  /** Resolves the connection a tab will execute against. Null means unknown. */
+  getTarget: (tab: QueryTabState) => TabTarget | null;
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onNew: () => void;
@@ -17,6 +26,7 @@ export interface TabStripProps {
 export default function TabStrip({
   tabs,
   activeId,
+  getTarget,
   onActivate,
   onClose,
   onNew,
@@ -29,6 +39,7 @@ export default function TabStrip({
           <Tab
             key={t.id}
             tab={t}
+            target={getTarget(t)}
             active={t.id === activeId}
             onActivate={() => onActivate(t.id)}
             onClose={() => onClose(t.id)}
@@ -51,17 +62,21 @@ export default function TabStrip({
 
 function Tab({
   tab,
+  target,
   active,
   onActivate,
   onClose,
 }: {
   tab: QueryTabState;
+  target: TabTarget | null;
   active: boolean;
   onActivate: () => void;
   onClose: () => void;
 }) {
   const running = tab.runState.phase === "running";
   const errored = tab.runState.phase === "error";
+
+  const tooltip = target ? `${tab.title} — ${target.detail}` : tab.title;
 
   return (
     <div
@@ -74,7 +89,7 @@ function Tab({
           onClose();
         }
       }}
-      title={tab.title}
+      title={tooltip}
     >
       <span
         className={`tab-status ${running ? "running" : errored ? "error" : ""}`}
@@ -82,6 +97,7 @@ function Tab({
         {running ? "●" : tab.dirty ? "●" : " "}
       </span>
       <span className="tab-title">{tab.title}</span>
+      {target && <span className="tab-target">@ {target.label}</span>}
       <button
         className="tab-close"
         onClick={(e) => {

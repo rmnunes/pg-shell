@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ConnectionSummary } from "../ipc/types";
 import HistoryPanel from "./HistoryPanel";
 import QueryTab from "./QueryTab";
-import TabStrip from "./TabStrip";
-import { useTabStore } from "./tabs";
+import TabStrip, { type TabTarget } from "./TabStrip";
+import { useTabStore, type QueryTabState } from "./tabs";
 
 interface Props {
   profileId: string;
+  /**
+   * Known connection profiles. Used to surface the target server next to each
+   * tab title — so the user sees where the SQL will execute.
+   */
+  connections: ConnectionSummary[];
   /**
    * SQL to open a new tab with when the tree injects a script. Bumped via a
    * version id so the same script can be re-opened.
@@ -18,7 +24,7 @@ interface Props {
  * tab when a profile activates, open new tab for injected scripts, keyboard
  * shortcuts for new/close).
  */
-export default function Workspace({ profileId, injectedSql }: Props) {
+export default function Workspace({ profileId, connections, injectedSql }: Props) {
   const tabs = useTabStore((s) => s.tabs);
   const activeId = useTabStore((s) => s.activeId);
   const openTab = useTabStore((s) => s.openTab);
@@ -81,11 +87,30 @@ export default function Workspace({ profileId, injectedSql }: Props) {
   const activeTab =
     profileTabs.find((t) => t.id === activeId) ?? profileTabs[profileTabs.length - 1] ?? null;
 
+  const connectionMap = useMemo(() => {
+    const m = new Map<string, ConnectionSummary>();
+    for (const c of connections) m.set(c.id, c);
+    return m;
+  }, [connections]);
+
+  const getTarget = useCallback(
+    (tab: QueryTabState): TabTarget | null => {
+      const c = connectionMap.get(tab.profileId);
+      if (!c) return null;
+      return {
+        label: `${c.name} / ${c.database}`,
+        detail: `${c.user}@${c.host}:${c.port}/${c.database}${c.connected ? "" : " (disconnected)"}`,
+      };
+    },
+    [connectionMap],
+  );
+
   return (
     <div className="workspace-shell">
       <TabStrip
         tabs={profileTabs}
         activeId={activeTab?.id ?? null}
+        getTarget={getTarget}
         onActivate={setActive}
         onClose={closeTab}
         onNew={() => openTab(profileId)}

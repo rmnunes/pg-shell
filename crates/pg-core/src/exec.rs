@@ -93,12 +93,13 @@ where
     // `fetch_many` yields Either<QueryResult, Row>. A statement that returns
     // rows emits a series of Rows followed by a QueryResult with the command
     // tag; a non-returning statement emits only the QueryResult.
-    let query = sqlx::query(&sql);
-    // `Query::fetch_many` is deprecated in sqlx 0.8 in favor of the Executor
-    // trait approach, but the trait approach lifetimes fight the borrow
-    // checker here. Keep the deprecated path until sqlx 0.9 stabilizes.
-    #[allow(deprecated)]
-    let mut stream = query.fetch_many(&mut *conn);
+    //
+    // We route through `raw_sql` (simple query protocol) rather than `query`
+    // (extended protocol) because Postgres rejects multi-statement batches in
+    // a prepared statement with `cannot insert multiple commands into a
+    // prepared statement`. The simple protocol has no statement preparation
+    // and happily executes `BEGIN; UPDATE ...; COMMIT;`-style scripts.
+    let mut stream = sqlx::raw_sql(&sql).fetch_many(&mut *conn);
 
     let mut columns_reported = false;
     let mut batch: Vec<serde_json::Value> = Vec::with_capacity(BATCH_SIZE);

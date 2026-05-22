@@ -161,7 +161,11 @@ export default function App() {
         </aside>
         <section className="workspace">
           {active?.connected ? (
-            <Workspace profileId={active.id} injectedSql={injectedSql} />
+            <Workspace
+              profileId={active.id}
+              connections={connections}
+              injectedSql={injectedSql}
+            />
           ) : server ? (
             <div className="empty-hint">
               <h2>Connected</h2>
