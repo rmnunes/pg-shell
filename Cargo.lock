@@ -2820,7 +2820,7 @@ dependencies = [
 
 [[package]]
 name = "pg-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -2839,7 +2839,7 @@ dependencies = [
 
 [[package]]
 name = "pg-intellisense"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "once_cell",
  "pg_query",
@@ -2851,7 +2851,7 @@ dependencies = [
 
 [[package]]
 name = "pg-profiles"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "directories",
  "keyring",
@@ -2866,7 +2866,7 @@ dependencies = [
 
 [[package]]
 name = "pg-schema-cache"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dashmap",
  "parking_lot",
@@ -2880,7 +2880,7 @@ dependencies = [
 
 [[package]]
 name = "pg-shell"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dashmap",
  "directories",
