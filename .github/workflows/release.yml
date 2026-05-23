@@ -54,10 +54,19 @@ jobs:
       # bundles (.msi/.exe on Windows, .dmg/.app.tar.gz on macOS, .deb/.rpm/
       # .AppImage on Linux). The first job to reach this step creates the
       # release; subsequent jobs upload to the same one (matched by tagName).
+      #
+      # The signing keys feed the updater plugin: tauri-action signs each
+      # bundle and uploads `latest.json` (the manifest the in-app updater
+      # downloads). Required secrets:
+      #   - TAURI_SIGNING_PRIVATE_KEY          contents of `~/.tauri/pg-shell.key`
+      #   - TAURI_SIGNING_PRIVATE_KEY_PASSWORD password used at `tauri signer generate`
+      # See docs/UPDATES.md for the one-time key generation steps.
       - name: Build and publish Tauri bundles
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
@@ -67,3 +76,8 @@ jobs:
             **Downloads** — pick the file for your OS below.
           releaseDraft: false
           prerelease: false
+          # Emit the signed updater manifest (`latest.json`) alongside the
+          # installer artifacts. The in-app updater pulls this via the
+          # `/releases/latest/download/latest.json` URL.
+          updaterJsonPreferNsis: true
+          includeUpdaterJson: true

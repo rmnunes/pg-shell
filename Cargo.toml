@@ -53,6 +53,8 @@ directories = "5"
 # Tauri
 tauri = { version = "2", features = [] }
 tauri-build = { version = "2" }
+tauri-plugin-updater = { version = "2" }
+tauri-plugin-process = { version = "2" }
 
 [profile.release]
 opt-level = 3

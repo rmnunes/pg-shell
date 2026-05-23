@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConnectionDialog from "./components/ConnectionDialog";
 import ConnectionPicker from "./components/ConnectionPicker";
+import UpdateBanner from "./components/UpdateBanner";
 import Workspace from "./workspace/Workspace";
 import ObjectPanel from "./tree/ObjectPanel";
 import {
@@ -35,6 +36,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [injectedSql, setInjectedSql] = useState<InjectedSql | null>(null);
+  const [updateCheckToken, setUpdateCheckToken] = useState(0);
 
   const refresh = useCallback(async () => {
     const list = await connectionsList();
@@ -142,7 +144,16 @@ export default function App() {
           onDelete={(id) => void handleDelete(id)}
           onNew={() => setDialog({ mode: "create" })}
         />
+        <span className="titlebar-spacer" />
+        <button
+          className="titlebar-button"
+          onClick={() => setUpdateCheckToken((t) => t + 1)}
+          title="Check for updates"
+        >
+          ↑ Check for updates
+        </button>
       </div>
+      <UpdateBanner manualCheckToken={updateCheckToken} />
       <div className="main">
         <aside className="sidebar">
           {active?.connected ? (

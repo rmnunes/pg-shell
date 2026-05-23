@@ -57,6 +57,7 @@ score = context_weight(kind)            // Table=100 in FROM ctx, etc.
 - **`pg_catalog` over `information_schema`** for introspection. It's faster and exposes `relkind` properly.
 - **Passwords live in the OS keychain** via the `keyring` crate (service `"pg-shell"`, username = profile id). Never in JSON or logs.
 - **No `println!` in library code.** Use `tracing`.
+- **Auto-update signing key is irreplaceable.** Lose `TAURI_SIGNING_PRIVATE_KEY` and existing installs cannot update — they'd need a manual reinstall. See [docs/UPDATES.md](docs/UPDATES.md) before touching the updater config or rotating keys.
 
 ## Common tasks — where to start
 
