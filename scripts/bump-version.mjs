@@ -8,8 +8,8 @@
 // Usage: node scripts/bump-version.mjs <patch|minor|major|x.y.z>
 //
 // After this script, review the diff, commit with `chore: release vX.Y.Z`,
-// then `git tag vX.Y.Z && git push --follow-tags` to kick off the release
-// workflow.
+// then `git tag vX.Y.Z && git push origin main vX.Y.Z` to kick off the
+// release workflow. (Not `--follow-tags`: it skips lightweight tags.)
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -72,7 +72,7 @@ console.log("");
 console.log(`done. Review the diff, then:`);
 console.log(`  git commit -am "chore: release v${next}"`);
 console.log(`  git tag v${next}`);
-console.log(`  git push --follow-tags`);
+console.log(`  git push origin main v${next}`);
 
 function computeNext(curr, bump) {
   if (/^\d+\.\d+\.\d+/.test(bump)) return bump;

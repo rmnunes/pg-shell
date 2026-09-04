@@ -89,8 +89,10 @@ After the script finishes:
 git diff                                  # sanity check
 git commit -am "chore: release v0.1.1"
 git tag v0.1.1
-git push --follow-tags
+git push origin main v0.1.1
 ```
+
+Push the tag by name: `git push --follow-tags` only sends *annotated* tags, and `git tag vX.Y.Z` creates a lightweight one, so the release workflow would never fire.
 
 The release workflow takes ~10–15 minutes per OS.
 
