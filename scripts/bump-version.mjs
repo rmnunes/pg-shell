@@ -37,6 +37,7 @@ const cargoTomls = [
   "crates/pg-intellisense/Cargo.toml",
   "crates/pg-schema-cache/Cargo.toml",
   "crates/pg-profiles/Cargo.toml",
+  "crates/pg-entra/Cargo.toml",
 ];
 
 for (const path of cargoTomls) {
