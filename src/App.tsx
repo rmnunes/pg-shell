@@ -15,6 +15,7 @@ import {
   connectionDelete,
   connectionDisconnect,
   connectionsList,
+  onEntraSignIn,
 } from "./ipc";
 import type { ConnectionSummary, ServerInfo } from "./ipc/types";
 
@@ -35,6 +36,8 @@ export default function App() {
   const [dialog, setDialog] = useState<DialogState>({ mode: "closed" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Transient status-bar message, e.g. "look at your browser" during Entra sign-in. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [injectedSql, setInjectedSql] = useState<InjectedSql | null>(null);
   const [updateCheckToken, setUpdateCheckToken] = useState(0);
 
@@ -46,6 +49,21 @@ export default function App() {
   useEffect(() => {
     refresh().catch((e) => setError(String(e?.message ?? e)));
   }, [refresh]);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    onEntraSignIn(() => setNotice("Complete the Microsoft sign-in in your browser…")).then(
+      (u) => {
+        if (disposed) u();
+        else unlisten = u;
+      },
+    );
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   const active = connections.find((c) => c.id === activeId) ?? null;
 
@@ -61,6 +79,7 @@ export default function App() {
       const err = e as { message?: string };
       setError(err.message ?? String(e));
     } finally {
+      setNotice(null);
       setBusy(false);
     }
   };
@@ -198,13 +217,17 @@ export default function App() {
           <span className={`dot ${server ? "connected" : ""}`} />
           {server ? `${active?.name ?? ""} · ${server.server_version.split(" ").slice(0, 2).join(" ")}` : "Not connected"}
         </span>
-        <span>{error ?? "Ready"}</span>
+        <span>{error ?? notice ?? "Ready"}</span>
       </div>
       {dialog.mode !== "closed" && (
         <ConnectionDialog
           initial={dialog.mode === "edit" ? dialog.profile : null}
-          onClose={() => setDialog({ mode: "closed" })}
+          onClose={() => {
+            setNotice(null);
+            setDialog({ mode: "closed" });
+          }}
           onSaved={async () => {
+            setNotice(null);
             setDialog({ mode: "closed" });
             await refresh();
           }}

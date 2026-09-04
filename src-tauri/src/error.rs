@@ -23,9 +23,26 @@ impl From<pg_profiles::ProfileStoreError> for AppError {
     }
 }
 
+impl From<pg_profiles::KeychainError> for AppError {
+    fn from(value: pg_profiles::KeychainError) -> Self {
+        AppError::new("keychain", value.to_string())
+    }
+}
+
 impl From<pg_core::ConnectionManagerError> for AppError {
     fn from(value: pg_core::ConnectionManagerError) -> Self {
         AppError::new("connection", value.to_string())
+    }
+}
+
+impl From<pg_entra::EntraError> for AppError {
+    fn from(value: pg_entra::EntraError) -> Self {
+        let kind = match &value {
+            pg_entra::EntraError::Timeout => "entra_timeout",
+            pg_entra::EntraError::Denied(_) => "entra_denied",
+            _ => "entra",
+        };
+        AppError::new(kind, value.to_string())
     }
 }
 

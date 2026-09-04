@@ -29,6 +29,9 @@ pg-core = { path = "../crates/pg-core" }
 pg-intellisense = { path = "../crates/pg-intellisense" }
 pg-schema-cache = { path = "../crates/pg-schema-cache" }
 pg-profiles = { path = "../crates/pg-profiles" }
+pg-entra = { path = "../crates/pg-entra" }
+reqwest = { workspace = true }
+open = { workspace = true }
 rusqlite = { version = "0.32", features = ["bundled"] }
 directories = { workspace = true }
 parking_lot = { workspace = true }

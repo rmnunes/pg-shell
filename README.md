@@ -98,6 +98,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full sequenced roadmap.
 
 - [x] Workspace scaffold, Tauri boots, React shell
 - [x] Connection profiles + OS keychain (passwords never on disk)
+- [x] Microsoft Entra MFA sign-in for Azure Database for PostgreSQL (browser flow, silent refresh)
 - [x] Test connection on new and saved profiles
 - [x] Query execution with streaming results
 - [x] Query cancellation
@@ -115,6 +116,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full sequenced roadmap.
 - [ ] Auto-alias on table insert (`FROM users` → `FROM users u`)
 - [ ] Cross-CTE column binding, LATERAL join awareness
 - [ ] Refactor-rename, semantic squigglies
+
+## Connecting to Azure with Microsoft Entra (MFA)
+
+Pick **Authentication → Microsoft Entra MFA** in the connection dialog. Leave **User** blank to connect as the account you sign in with (pg-shell fills in your UPN from the sign-in), or enter an Entra group's display name to connect as that group's role — the way group-based access works on Azure Postgres unless the server has `pgaadauth.enable_group_sync` turned on, in which case members get individual roles and the blank default is the right choice. Connecting opens your browser for the Microsoft sign-in — MFA and Conditional Access happen there — and pg-shell then uses the access token as the database password. Tokens are refreshed silently while you work; only the refresh token is cached, in the OS keychain, so the next launch reconnects without a prompt until your tenant's sign-in policy asks again. **Sign out** in the profile editor forgets it.
+
+Prerequisites on the Azure side: the server must have Entra authentication enabled and your principal created (`select * from pgaadauth_create_principal('you@contoso.com', false, false)` as the Entra admin). SSL is required; the dialog switches to `require` for you.
+
+Two optional fields cover the less common setups:
+
+- **Tenant** — a tenant id or verified domain if you are a guest in the tenant that owns the server. Defaults to `organizations`.
+- **Client ID** — the public-client app registration to sign in through. By default pg-shell uses the Azure CLI's client id, which every tenant already trusts for Azure Database for PostgreSQL (it is what `az account get-access-token --resource-type oss-rdbms` uses). If your organisation prefers its own registration, create a public client with redirect URI `http://localhost` and the `Azure OSSRDBMS Database → user_impersonation` delegated permission, then paste its id here.
 
 ## Contributing
 

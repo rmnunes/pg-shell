@@ -26,7 +26,8 @@ c:\dev\pg-shell\
 │   ├── pg-core\              # sqlx pool mgr, query exec, streaming, cancel
 │   ├── pg-intellisense\      # tokenizer + partial-parse + context + ranker + snippets + MRU
 │   ├── pg-schema-cache\      # introspection, DashMap store, bincode persistence
-│   └── pg-profiles\          # profile JSON + OS keychain via `keyring`
+│   ├── pg-profiles\          # profile JSON + OS keychain via `keyring`
+│   └── pg-entra\             # Microsoft Entra ID sign-in (auth-code + PKCE, silent refresh)
 └── src\                      # React UI: editor, results grid, object tree, shell
 ```
 
@@ -73,9 +74,21 @@ Storage: `DashMap<ProfileId, Arc<RwLock<DatabaseCatalog>>>` in-memory; `bincode`
 
 ### Connection manager
 
-- Profiles in `%APPDATA%\pg-shell\profiles.json` — `{id, name, host, port, database, user, ssl_mode, app_name, group}`.
+- Profiles in `%APPDATA%\pg-shell\profiles.json` — `{id, name, host, port, database, user, ssl_mode, app_name, group, auth_method, entra?}`. `auth_method` is `password` (default) or `entra_mfa`; `entra` carries optional `{tenant, client_id}` overrides.
 - Passwords **only** in OS keychain via `keyring` crate (service `"pg-shell"`, username = profile_id). Never in JSON.
-- `sqlx::PgPool` per profile, lazy-created, `max_connections=5` default. Held in `ConnectionManager: DashMap<ProfileId, PgPool>`.
+- `sqlx::PgPool` per profile, lazy-created, `max_connections=5` default. Held in `ConnectionManager: DashMap<ProfileId, PoolEntry>` — the pool plus an optional credential-rotation task.
+- The pool authenticates with a `Credential`: `Password(String)` or `Token(Arc<dyn TokenSource>)`. Token pools spawn a task that asks the source for a fresh token ahead of expiry and pushes it in via `Pool::set_connect_options`, because sqlx opens connections lazily and recycles them; established sessions are untouched (Postgres checks the password only at login).
+
+#### Microsoft Entra MFA (Azure Database for PostgreSQL)
+
+Mirrors SSMS's "Microsoft Entra MFA" option. Azure accepts an Entra access token as the password for a principal created with `pgaadauth_create_principal`.
+
+- `pg-entra` runs OAuth 2.0 authorization-code + PKCE against `login.microsoftonline.com/{tenant}/oauth2/v2.0`. The system browser handles credentials, MFA and Conditional Access; the code returns to a loopback listener on an ephemeral port (`http://localhost:{port}`, bound on both `127.0.0.1` and `::1` when possible). Scope: `https://ossrdbms-aad.database.windows.net/.default openid profile offline_access`.
+- Default client id is the Azure CLI public client (`04b07795-8ddb-461a-bbee-02f9e1bf7b46`) — every tenant already trusts it for OSS RDBMS and it registers the loopback redirect. Overridable per profile for orgs that register their own public client. Default tenant is `organizations`.
+- Acquisition order on connect: live `EntraSession` → refresh token from the keychain (`keyring` username `<profile_id>/entra-refresh`, stored as raw bytes to fit Windows' 2560-byte blob cap) → browser. A refresh rejected with `invalid_grant` / `interaction_required` drops the cached token and falls through to the browser; network errors do not.
+- Access tokens live in memory only and never appear in logs (`Debug` impls redact). Refresh tokens rotate; the session persists each new one through a callback so `pg-entra` stays keychain-agnostic.
+- `user` may be blank on an Entra profile: the Postgres role then defaults to the signed-in account, read from the ID token's `preferred_username` claim (`TokenSet::account`) and applied in `src-tauri` after sign-in. Group-role logins set `user` to the group's display name explicitly. The `login_hint` is only sent when `user` looks like a UPN, so a group name never shows up as a phantom account in Microsoft's picker.
+- Frontend gets an `entra:sign_in` event when the browser is launched so it can tell the user where to look. `connection_entra_sign_out` forgets the cached sign-in.
 - Each query tab binds to one profile; status bar shows server/db/user/latency.
 - Cancellation: `PgConnection::cancel_query` (Postgres CancelRequest protocol); fallback `SELECT pg_cancel_backend($pid)` via sibling connection.
 

@@ -5,6 +5,7 @@ use pg_core::ConnectionManager;
 use pg_profiles::ProfileStore;
 use pg_schema_cache::SchemaCache;
 
+use crate::entra::EntraSessions;
 use crate::history::HistoryStore;
 use crate::mru::MruStore;
 
@@ -15,6 +16,8 @@ pub struct AppState {
     pub schema_cache: SchemaCache,
     pub mru: MruStore,
     pub history: HistoryStore,
+    /// Signed-in Microsoft Entra identities, one per Entra-auth profile.
+    pub entra: EntraSessions,
     /// Live query registry keyed by `query_id`. Entry holds the backend PID
     /// needed for `pg_cancel_backend`, plus the profile the query runs under.
     pub active_queries: Arc<DashMap<String, ActiveQuery>>,

@@ -20,6 +20,7 @@ crates/
   pg-intellisense/            tokenize → partial-parse → context → ranker → snippets
   pg-schema-cache/            pg_catalog introspection, DashMap, bincode persistence
   pg-profiles/                profile JSON + OS keychain (`keyring` crate)
+  pg-entra/                   Microsoft Entra ID sign-in: auth-code + PKCE, loopback redirect, silent refresh
 src/                          React UI (Vite + Monaco + TanStack Virtual + Zustand)
   editor/                     Monaco wiring + completionProvider.ts (calls Tauri IPC)
   results/                    virtualized grid
@@ -56,6 +57,7 @@ score = context_weight(kind)            // Table=100 in FROM ctx, etc.
 - **`AppError`, not `anyhow::Error`, across IPC.** Tauri commands serialize their errors; don't leak `anyhow` types to the frontend.
 - **`pg_catalog` over `information_schema`** for introspection. It's faster and exposes `relkind` properly.
 - **Passwords live in the OS keychain** via the `keyring` crate (service `"pg-shell"`, username = profile id). Never in JSON or logs.
+- **Entra tokens: access tokens in memory only, refresh tokens only in the keychain** (username `<profile id>/entra-refresh`). Never log a token body or a token-endpoint response; `TokenSet`/`AccessToken` `Debug` impls redact on purpose. `pg-entra` must not depend on `keyring` or `pg-core` — persistence goes through the `PersistFn` callback, pool integration through `pg_core::TokenSource` implemented in `src-tauri/src/entra.rs`.
 - **No `println!` in library code.** Use `tracing`.
 - **Auto-update signing key is irreplaceable.** Lose `TAURI_SIGNING_PRIVATE_KEY` and existing installs cannot update — they'd need a manual reinstall. See [docs/UPDATES.md](docs/UPDATES.md) before touching the updater config or rotating keys.
 
@@ -68,6 +70,7 @@ score = context_weight(kind)            // Table=100 in FROM ctx, etc.
 | New IPC command | [src-tauri/src/commands/](src-tauri/src/commands/) — register in `main.rs` `invoke_handler` |
 | Results grid behavior | [src/results/](src/results/) — uses TanStack Virtual, fixed 24px rows |
 | Connection lifecycle | [crates/pg-core/src/pool.rs](crates/pg-core/src/pool.rs) and [crates/pg-profiles/src/](crates/pg-profiles/src/) |
+| Entra / Azure sign-in behaviour | [crates/pg-entra/src/](crates/pg-entra/src/) for the OAuth flow, [src-tauri/src/entra.rs](src-tauri/src/entra.rs) for session caching + keychain + UI events |
 | Snippets library | [crates/pg-intellisense/src/snippets.rs](crates/pg-intellisense/src/snippets.rs) |
 
 ## Verification before declaring done

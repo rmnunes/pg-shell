@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod entra;
 mod error;
 mod history;
 mod mru;
@@ -34,6 +35,7 @@ fn main() {
         schema_cache: pg_schema_cache::SchemaCache::new(),
         mru,
         history,
+        entra: entra::EntraSessions::default(),
         active_queries: Arc::new(DashMap::new()),
     };
 
@@ -52,6 +54,7 @@ fn main() {
             commands::connections::connection_disconnect,
             commands::connections::connection_password_set,
             commands::connections::connection_password_clear,
+            commands::connections::connection_entra_sign_out,
             commands::query::query_execute,
             commands::query::query_cancel,
             commands::schema::schema_browse,

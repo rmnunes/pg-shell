@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { endpointLabel } from "../ipc/labels";
 import type { ConnectionSummary } from "../ipc/types";
 
 export interface ConnectionPickerProps {
@@ -40,9 +41,7 @@ export default function ConnectionPicker(props: ConnectionPickerProps) {
       ? "+ New connection"
       : "Select connection";
 
-  const labelDetail = active
-    ? `${active.user}@${active.host}:${active.port}/${active.database}`
-    : null;
+  const labelDetail = active ? endpointLabel(active) : null;
 
   const handleRowClick = useCallback(
     (c: ConnectionSummary) => {
@@ -93,9 +92,7 @@ export default function ConnectionPicker(props: ConnectionPickerProps) {
                 <span className={`dot ${c.connected ? "connected" : ""}`} />
                 <div className="conn-picker-row-body">
                   <div className="name">{c.name}</div>
-                  <div className="meta">
-                    {c.user}@{c.host}:{c.port}/{c.database}
-                  </div>
+                  <div className="meta">{endpointLabel(c)}</div>
                 </div>
                 <div
                   className="conn-picker-row-actions"

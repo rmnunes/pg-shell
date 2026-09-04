@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { endpointLabel } from "../ipc/labels";
 import type { ConnectionSummary } from "../ipc/types";
 import HistoryPanel from "./HistoryPanel";
 import QueryTab from "./QueryTab";
@@ -99,7 +100,7 @@ export default function Workspace({ profileId, connections, injectedSql }: Props
       if (!c) return null;
       return {
         label: `${c.name} / ${c.database}`,
-        detail: `${c.user}@${c.host}:${c.port}/${c.database}${c.connected ? "" : " (disconnected)"}`,
+        detail: `${endpointLabel(c)}${c.connected ? "" : " (disconnected)"}`,
       };
     },
     [connectionMap],

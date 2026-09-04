@@ -6,6 +6,7 @@ members = [
     "crates/pg-intellisense",
     "crates/pg-schema-cache",
     "crates/pg-profiles",
+    "crates/pg-entra",
 ]
 
 [workspace.package]
@@ -49,6 +50,19 @@ pg_query = "6"
 # Profiles / persistence
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 directories = "5"
+
+# Microsoft Entra ID sign-in (OAuth 2.0 auth-code + PKCE). reqwest/sha2/base64/
+# rand/url are already in the graph via tauri-plugin-updater and sqlx, so these
+# add no new compiled crates; `open` launches the system browser.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+url = "2"
+open = "5"
+# rustls needs exactly one crypto provider; pin `ring`, the one sqlx already
+# compiles in, so pg-entra also works when built/tested on its own.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 # Tauri
 tauri = { version = "2", features = [] }
