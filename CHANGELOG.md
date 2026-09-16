@@ -4,6 +4,25 @@ All notable changes to pg-shell. Releases are tagged `vX.Y.Z` and published on
 the [Releases page](https://github.com/rmnunes/pg-shell/releases); installed
 copies pick them up through the in-app updater.
 
+## v0.4.1 — 2026-09-16
+
+### Fixed
+
+- Scripts written for psql no longer fail with `syntax error at or near "\"`.
+  Backslash commands are psql's own, not SQL, so the server rejected them and
+  pointed at a line that looked perfectly valid. Commands that only shape
+  psql's output — `\echo`, `\pset`, `\timing`, `\x`, `\a`, `\t`, `\f`, `\C`,
+  `\H`, `\h`, `\qecho`, `\warn` — are now dropped and the SQL runs unchanged.
+- Anything that would change *what the script does* is still refused, but by
+  name and line: "line 62: psql meta-command \gset is not supported…". That
+  covers `\set`, `\gset`, `\i`, `\ir`, `\copy`, `\gexec`, `\watch`, `\d*` and
+  friends. `\c` is deliberately in that group — silently dropping a `\connect`
+  would run the rest of the script against a different database.
+- Backslashes inside string literals, dollar-quoted bodies and block comments
+  are left alone, including Windows paths like `'C:\dev\pg-shell'`. Stripped
+  lines become blank rather than vanishing, so line numbers in later server
+  errors still line up with the editor.
+
 ## v0.4.0 — 2026-09-04
 
 ### Added
