@@ -9,6 +9,11 @@ export type TabRunState =
   | { phase: "done"; durationMs: number; rowCount: number; cancelled: boolean; mode: "selection" | "buffer" }
   | { phase: "error"; message: string };
 
+export interface ResultSet {
+  columns: ColumnMeta[];
+  rows: Row[];
+}
+
 export interface QueryTabState {
   id: string;
   title: string;
@@ -17,8 +22,12 @@ export interface QueryTabState {
   /** SQL actually executed — preserved so the commands panel can derive tags
    *  even after the user keeps editing the buffer. */
   executedSql: string;
-  columns: ColumnMeta[];
-  rows: Row[];
+  /** One entry per result-set-producing statement in the last batch. A script
+   *  ending in several SELECTs yields several, each with its own shape;
+   *  flattening them into one grid mismatches rows against columns. */
+  results: ResultSet[];
+  /** Which result set the grid is showing. */
+  activeResult: number;
   commands: CommandResult[];
   runState: TabRunState;
   activeQueryId: string | null;
@@ -47,8 +56,9 @@ interface TabStore {
     mode: "selection" | "buffer",
     unlisten: UnlistenFn | null,
   ): void;
-  setColumns(id: string, cols: ColumnMeta[], pid: number): void;
-  appendRows(id: string, rows: Row[]): void;
+  startResult(id: string, resultIndex: number, cols: ColumnMeta[], pid: number): void;
+  appendRows(id: string, resultIndex: number, rows: Row[]): void;
+  setActiveResult(id: string, resultIndex: number): void;
   appendCommand(id: string, cmd: CommandResult): void;
   setDone(id: string, rowCount: number, durationMs: number, cancelled: boolean): void;
   setError(id: string, message: string): void;
@@ -69,8 +79,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
       profileId,
       sql: initialSql ?? "",
       executedSql: "",
-      columns: [],
-      rows: [],
+      results: [],
+      activeResult: 0,
       commands: [],
       runState: { phase: "idle" },
       activeQueryId: null,
@@ -127,8 +137,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
               activeQueryId: queryId,
               unlisten,
               executedSql,
-              columns: [],
-              rows: [],
+              results: [],
+              activeResult: 0,
               commands: [],
             }
           : t,
@@ -136,25 +146,37 @@ export const useTabStore = create<TabStore>((set, get) => ({
     }));
   },
 
-  setColumns(id, cols, pid) {
+  startResult(id, resultIndex, cols, pid) {
     set((s) => ({
       tabs: s.tabs.map((t) => {
         if (t.id !== id) return t;
-        if (t.runState.phase !== "running") return { ...t, columns: cols };
-        return {
-          ...t,
-          columns: cols,
-          runState: { ...t.runState, pid },
-        };
+        const results = t.results.slice();
+        // Indexes arrive in order, but seed any gap rather than leave holes —
+        // `results[i]` is read directly by the grid.
+        while (results.length <= resultIndex) results.push({ columns: [], rows: [] });
+        results[resultIndex] = { columns: cols, rows: results[resultIndex].rows };
+        if (t.runState.phase !== "running") return { ...t, results };
+        return { ...t, results, runState: { ...t.runState, pid } };
       }),
     }));
   },
 
-  appendRows(id, rows) {
+  appendRows(id, resultIndex, rows) {
     set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.id === id ? { ...t, rows: t.rows.concat(rows) } : t,
-      ),
+      tabs: s.tabs.map((t) => {
+        if (t.id !== id) return t;
+        const results = t.results.slice();
+        while (results.length <= resultIndex) results.push({ columns: [], rows: [] });
+        const target = results[resultIndex];
+        results[resultIndex] = { columns: target.columns, rows: target.rows.concat(rows) };
+        return { ...t, results };
+      }),
+    }));
+  },
+
+  setActiveResult(id, resultIndex) {
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, activeResult: resultIndex } : t)),
     }));
   },
 
@@ -213,7 +235,13 @@ export const useTabStore = create<TabStore>((set, get) => ({
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === id
-          ? { ...t, columns: [], rows: [], commands: [], runState: { phase: "idle" } }
+          ? {
+              ...t,
+              results: [],
+              activeResult: 0,
+              commands: [],
+              runState: { phase: "idle" },
+            }
           : t,
       ),
     }));

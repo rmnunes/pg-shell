@@ -4,6 +4,32 @@ All notable changes to pg-shell. Releases are tagged `vX.Y.Z` and published on
 the [Releases page](https://github.com/rmnunes/pg-shell/releases); installed
 copies pick them up through the in-app updater.
 
+## v0.5.0 — 2026-09-16
+
+### Fixed
+
+- **The window no longer goes blank when a batch returns more than one result
+  set.** Columns were announced once, on the first row-producing statement, and
+  every later statement's rows were streamed under that same header. A script
+  ending in SELECTs of different widths therefore handed 4-cell rows to a
+  3-column grid; the renderer threw on the missing column and, with no error
+  boundary anywhere, React unmounted the entire app. Nothing was wrong with the
+  query — the results were simply unrenderable.
+- Each result-set-producing statement now gets its own columns and its own
+  rows. When a batch produces several, a **Result 1 / Result 2 / …** strip
+  appears above the grid; hovering a chip shows that set's column names and row
+  count. Batches with a single result set look exactly as before.
+- CSV, TSV and JSON export act on the result set on screen rather than a
+  flattened concatenation of every SELECT in the batch.
+- The grid skips cells that have no matching column instead of throwing, so a
+  shape mismatch can never take the window down again.
+
+### Changed
+
+- `query:start` and `query:rows` carry a `result_index`. Anything consuming
+  those events directly needs to key rows by it rather than assume one grid per
+  run.
+
 ## v0.4.1 — 2026-09-16
 
 ### Fixed

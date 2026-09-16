@@ -46,11 +46,17 @@ export interface QueryStartEvent {
   query_id: string;
   columns: ColumnMeta[];
   backend_pid: number;
+  /** Zero-based result set within the batch. `SELECT a; SELECT b, c;` emits one
+   *  of these per SELECT, each with its own shape. */
+  result_index: number;
 }
 
 export interface QueryRowsEvent {
   query_id: string;
   batch_index: number;
+  /** The result set these rows belong to — pair them with the columns from the
+   *  `query:start` carrying the same `result_index`, never with the first. */
+  result_index: number;
   rows: Row[];
 }
 
