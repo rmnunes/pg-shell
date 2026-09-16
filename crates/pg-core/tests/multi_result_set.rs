@@ -63,11 +63,9 @@ async fn run(sql: &str) -> (Vec<Vec<String>>, Vec<usize>) {
 #[tokio::test]
 #[ignore = "needs PG_SHELL_TEST_URL"]
 async fn each_select_gets_its_own_columns() {
-    let (names, counts) = run(
-        "SELECT 1 AS a; \
+    let (names, counts) = run("SELECT 1 AS a; \
          SELECT 2 AS b, 3 AS c, 4 AS d, 5 AS e; \
-         SELECT 6 AS f, 7 AS g;",
-    )
+         SELECT 6 AS f, 7 AS g;")
     .await;
 
     assert_eq!(names.len(), 3, "one QueryStart per SELECT, got {names:?}");
@@ -82,15 +80,17 @@ async fn each_select_gets_its_own_columns() {
 #[tokio::test]
 #[ignore = "needs PG_SHELL_TEST_URL"]
 async fn ddl_between_selects_does_not_consume_an_index() {
-    let (names, counts) = run(
-        "SELECT 1 AS first; \
+    let (names, counts) = run("SELECT 1 AS first; \
          CREATE TEMP TABLE t_gap(x int); \
          INSERT INTO t_gap VALUES (1), (2); \
-         SELECT x AS second FROM t_gap ORDER BY x;",
-    )
+         SELECT x AS second FROM t_gap ORDER BY x;")
     .await;
 
-    assert_eq!(names.len(), 2, "only SELECTs open result sets, got {names:?}");
+    assert_eq!(
+        names.len(),
+        2,
+        "only SELECTs open result sets, got {names:?}"
+    );
     assert_eq!(names[0], ["first"]);
     assert_eq!(names[1], ["second"]);
     assert_eq!(counts, vec![1, 2]);
@@ -111,8 +111,7 @@ async fn command_only_batch_still_announces_once() {
 #[tokio::test]
 #[ignore = "needs PG_SHELL_TEST_URL"]
 async fn psql_style_script_with_echo_and_mixed_selects() {
-    let (names, counts) = run(
-        "BEGIN;\n\
+    let (names, counts) = run("BEGIN;\n\
          CREATE TEMP TABLE t_perm(code text, category text, is_enabled bool);\n\
          INSERT INTO t_perm VALUES ('a','dashboard',true);\n\
          COMMIT;\n\
@@ -122,8 +121,7 @@ async fn psql_style_script_with_echo_and_mixed_selects() {
          \\echo 'Role:'\n\
          SELECT 'SM' AS code, 'Sales Manager' AS label, true AS is_enabled, false AS is_system;\n\
          \\echo 'Grants:'\n\
-         SELECT 'CM' AS role_code, 'dashboard.credit.view' AS permission_code;",
-    )
+         SELECT 'CM' AS role_code, 'dashboard.credit.view' AS permission_code;")
     .await;
 
     assert_eq!(names.len(), 3, "three verification SELECTs, got {names:?}");
