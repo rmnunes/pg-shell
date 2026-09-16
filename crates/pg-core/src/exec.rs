@@ -18,6 +18,7 @@ use serde::Serialize;
 use sqlx::postgres::PgPool;
 use sqlx::{Either, Row};
 
+use crate::meta::strip_psql_meta;
 use crate::types::{column_meta, row_to_json, ColumnMeta};
 
 /// Batch size before a partial result is flushed to the caller.
@@ -29,6 +30,8 @@ pub enum ExecError {
     Sqlx(#[from] sqlx::Error),
     #[error("pool not found for profile")]
     NoPool,
+    #[error("{0}")]
+    PsqlMeta(String),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,6 +102,13 @@ where
     // a prepared statement with `cannot insert multiple commands into a
     // prepared statement`. The simple protocol has no statement preparation
     // and happily executes `BEGIN; UPDATE ...; COMMIT;`-style scripts.
+    // Scripts written for psql often carry a few backslash commands. Drop the
+    // ones that only shape psql's own output; anything that would change what
+    // the script does is refused by name and line, because the server would
+    // otherwise report `syntax error at or near "\"` against a line the author
+    // has no reason to suspect.
+    let sql = strip_psql_meta(&sql).map_err(|m| ExecError::PsqlMeta(m.message()))?;
+
     let mut stream = sqlx::raw_sql(&sql).fetch_many(&mut *conn);
 
     let mut columns_reported = false;
