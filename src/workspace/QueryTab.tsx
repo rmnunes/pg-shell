@@ -27,8 +27,9 @@ interface Props {
 export default function QueryTab({ tab }: Props) {
   const updateSql = useTabStore((s) => s.updateSql);
   const setRunning = useTabStore((s) => s.setRunning);
-  const setColumns = useTabStore((s) => s.setColumns);
+  const startResult = useTabStore((s) => s.startResult);
   const appendRows = useTabStore((s) => s.appendRows);
+  const setActiveResult = useTabStore((s) => s.setActiveResult);
   const appendCommand = useTabStore((s) => s.appendCommand);
   const setDone = useTabStore((s) => s.setDone);
   const setError = useTabStore((s) => s.setError);
@@ -47,8 +48,8 @@ export default function QueryTab({ tab }: Props) {
       // Pre-attach subscribers before dispatching execute so we don't miss
       // the initial start event on fast queries.
       const unlisten = await subscribeQuery(qid, {
-        onStart: (e) => setColumns(tab.id, e.columns, e.backend_pid),
-        onRows: (e) => appendRows(tab.id, e.rows),
+        onStart: (e) => startResult(tab.id, e.result_index, e.columns, e.backend_pid),
+        onRows: (e) => appendRows(tab.id, e.result_index, e.rows),
         onCommand: (e) =>
           appendCommand(tab.id, { index: e.index, rows_affected: e.rows_affected }),
         onDone: (e) => setDone(tab.id, e.total_rows, e.duration_ms, e.cancelled),
@@ -63,7 +64,7 @@ export default function QueryTab({ tab }: Props) {
         setError(tab.id, err.message ?? String(e));
       }
     },
-    [tab.id, tab.profileId, tab.sql, tab.runState.phase, setRunning, setColumns, appendRows, setDone, setError],
+    [tab.id, tab.profileId, tab.sql, tab.runState.phase, setRunning, startResult, appendRows, setDone, setError],
   );
 
   const cancel = useCallback(async () => {
@@ -77,15 +78,19 @@ export default function QueryTab({ tab }: Props) {
 
   const statusLine = useMemo(() => statusText(tab), [tab]);
 
+  // Exports act on the result set on screen, not a flattened concatenation of
+  // every SELECT in the batch — those have different shapes.
+  const shown = tab.results[tab.activeResult] ?? { columns: [], rows: [] };
+
   const exportAs = (kind: "csv" | "tsv" | "json") => {
-    if (!tab.columns.length || !tab.rows.length) return;
+    if (!shown.columns.length || !shown.rows.length) return;
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     if (kind === "csv") {
-      downloadText(`pg-shell-${ts}.csv`, "text/csv", rowsToCsv(tab.columns, tab.rows));
+      downloadText(`pg-shell-${ts}.csv`, "text/csv", rowsToCsv(shown.columns, shown.rows));
     } else if (kind === "tsv") {
-      navigator.clipboard.writeText(rowsToTsv(tab.columns, tab.rows)).catch(() => undefined);
+      navigator.clipboard.writeText(rowsToTsv(shown.columns, shown.rows)).catch(() => undefined);
     } else {
-      downloadText(`pg-shell-${ts}.json`, "application/json", rowsToJson(tab.columns, tab.rows));
+      downloadText(`pg-shell-${ts}.json`, "application/json", rowsToJson(shown.columns, shown.rows));
     }
   };
 
@@ -140,17 +145,17 @@ export default function QueryTab({ tab }: Props) {
           </button>
         )}
         <span className="toolbar-sep" />
-        <button disabled={!tab.rows.length || running} onClick={() => exportAs("csv")}>
+        <button disabled={!shown.rows.length || running} onClick={() => exportAs("csv")}>
           Export CSV
         </button>
         <button
-          disabled={!tab.rows.length || running}
+          disabled={!shown.rows.length || running}
           onClick={() => exportAs("tsv")}
           title="Copy as TSV to clipboard"
         >
           Copy TSV
         </button>
-        <button disabled={!tab.rows.length || running} onClick={() => exportAs("json")}>
+        <button disabled={!shown.rows.length || running} onClick={() => exportAs("json")}>
           Export JSON
         </button>
         <span className="toolbar-spacer" />
@@ -185,8 +190,25 @@ export default function QueryTab({ tab }: Props) {
         <div className="query-results-pane">
           {tab.runState.phase === "error" ? (
             <div className="query-error">{tab.runState.message}</div>
-          ) : tab.columns.length ? (
-            <ResultsGrid columns={tab.columns} rows={tab.rows} />
+          ) : shown.columns.length ? (
+            <>
+              {tab.results.length > 1 && (
+                <div className="result-set-strip">
+                  {tab.results.map((r, i) => (
+                    <button
+                      key={i}
+                      className={`result-set-chip${i === tab.activeResult ? " active" : ""}`}
+                      onClick={() => setActiveResult(tab.id, i)}
+                      title={`${r.columns.map((c) => c.name).join(", ")} — ${r.rows.length} row${r.rows.length === 1 ? "" : "s"}`}
+                    >
+                      Result {i + 1}
+                      <span className="result-set-count">{r.rows.length}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <ResultsGrid columns={shown.columns} rows={shown.rows} />
+            </>
           ) : tab.commands.length ? (
             <CommandsPanel
               sql={tab.executedSql}
@@ -230,7 +252,7 @@ function writeSplitPct(pct: number): void {
 }
 
 function statusText(tab: QueryTabState): string {
-  const liveRows = tab.rows.length;
+  const liveRows = tab.results.reduce((n, r) => n + r.rows.length, 0);
   switch (tab.runState.phase) {
     case "idle":
       return "Ready";

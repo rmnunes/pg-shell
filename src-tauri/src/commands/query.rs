@@ -30,6 +30,9 @@ struct StartPayload {
 struct RowsPayload {
     query_id: String,
     batch_index: u32,
+    /// Which result set in the batch these rows belong to; matches the
+    /// `result_index` of the `query:start` that announced their columns.
+    result_index: u32,
     rows: Vec<serde_json::Value>,
 }
 
@@ -130,10 +133,11 @@ pub async fn query_execute(
         let batch_emitter = {
             let app = app.clone();
             let qid = qid.clone();
-            move |rows: Vec<serde_json::Value>| {
+            move |result_index: u32, rows: Vec<serde_json::Value>| {
                 let payload = RowsPayload {
                     query_id: qid.clone(),
                     batch_index,
+                    result_index,
                     rows,
                 };
                 batch_index += 1;

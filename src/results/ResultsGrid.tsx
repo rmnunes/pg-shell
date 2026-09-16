@@ -101,6 +101,10 @@ export default function ResultsGrid({ columns, rows }: ResultsGridProps) {
                 <div className="grid-gutter-cell">{vr.index + 1}</div>
                 {row.map((cell, ci) => {
                   const col = columns[ci];
+                  // Belt and braces: rows are keyed to their own result set's
+                  // columns upstream, but a row wider than the header must
+                  // never throw here — an exception unmounts the whole app.
+                  if (!col) return null;
                   const rendered = renderCell(cell, col.render_kind);
                   const openable =
                     (col.render_kind === "json" || col.render_kind === "array") &&
@@ -232,8 +236,9 @@ function measureAutoFitWidth(col: ColumnMeta, rows: Row[], colIdx: number): numb
   let widest = headerPx;
   const sample = Math.min(rows.length, AUTOFIT_SAMPLE);
   for (let i = 0; i < sample; i++) {
-    const cell = rows[i][colIdx];
-    const rendered = renderCell(cell, col.render_kind);
+    const row = rows[i];
+    if (colIdx >= row.length) continue;
+    const rendered = renderCell(row[colIdx], col.render_kind);
     const w = measureText(rendered.text);
     if (w > widest) widest = w;
   }

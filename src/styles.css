@@ -1520,3 +1520,46 @@ body.grid-resizing * {
 .dialog-footer .status.err {
   color: var(--danger);
 }
+
+/* Result-set switcher — only rendered when a batch returned more than one
+   result set (e.g. a script ending in several SELECTs). */
+.result-set-strip {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex: 0 0 auto;
+}
+
+.result-set-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: var(--fg-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.result-set-chip:hover {
+  background: var(--bg-1);
+  color: var(--fg-1);
+}
+
+.result-set-chip.active {
+  background: var(--bg-1);
+  border-color: var(--border);
+  color: var(--fg-1);
+}
+
+.result-set-count {
+  font-size: 10px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}

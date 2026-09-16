@@ -38,6 +38,11 @@ pub enum ExecError {
 pub struct QueryStart {
     pub columns: Vec<ColumnMeta>,
     pub backend_pid: i32,
+    /// Zero-based index of the result set these columns describe. A batch like
+    /// `SELECT a; SELECT b, c;` emits one `QueryStart` per SELECT, each with its
+    /// own shape, so consumers must key rows by this rather than assume a batch
+    /// has a single grid.
+    pub result_index: u32,
 }
 
 /// A command completion produced by a non-row-returning statement in the
@@ -66,11 +71,15 @@ pub struct QueryDone {
 /// `TRUNCATE x; SELECT * FROM y` yields one `CommandResult` for TRUNCATE
 /// followed by streamed rows for the SELECT.
 ///
-/// - `on_start` is called the first time a result-set-producing statement is
-///   seen, or — if none in the batch — after completion with empty columns so
-///   the UI can still render.
-/// - `on_batch` receives `BATCH_SIZE`-sized (or smaller final) batches of
-///   rows, each row being a JSON array matching the column order.
+/// - `on_start` fires once per result-set-producing statement, carrying that
+///   statement's own columns and its `result_index`. A batch whose statements
+///   return different shapes therefore produces several — feeding them all into
+///   one grid mismatches rows against columns. If nothing in the batch returns
+///   rows, it fires once after completion with empty columns so the UI can
+///   still render a command summary.
+/// - `on_batch` receives the owning `result_index` plus `BATCH_SIZE`-sized (or
+///   smaller final) batches of rows, each row a JSON array in that result set's
+///   column order.
 /// - `on_command` fires once per non-row-returning statement.
 pub async fn execute_streaming<S, B, C>(
     pool: PgPool,
@@ -81,7 +90,7 @@ pub async fn execute_streaming<S, B, C>(
 ) -> Result<QueryDone, ExecError>
 where
     S: FnMut(QueryStart),
-    B: FnMut(Vec<serde_json::Value>),
+    B: FnMut(u32, Vec<serde_json::Value>),
     C: FnMut(CommandResult),
 {
     let start_time = Instant::now();
@@ -111,11 +120,18 @@ where
 
     let mut stream = sqlx::raw_sql(&sql).fetch_many(&mut *conn);
 
-    let mut columns_reported = false;
+    let mut any_result = false;
     let mut batch: Vec<serde_json::Value> = Vec::with_capacity(BATCH_SIZE);
     let mut total_rows: u64 = 0;
     let mut total_commands: u32 = 0;
     let mut stmt_index: u32 = 0;
+    // Index of the result set currently streaming, and whether its columns have
+    // been announced yet. Reset at every statement boundary so each SELECT in a
+    // batch gets its own QueryStart — rows carry no shape of their own, so a
+    // consumer that reused the first statement's columns would line a 2-column
+    // row up against a 4-column header.
+    let mut result_index: u32 = 0;
+    let mut result_started = false;
     // True once the current statement has emitted at least one row — used to
     // decide whether its terminating QueryResult should be reported as a
     // "command" or swallowed (it's just the end-of-result-set marker).
@@ -126,28 +142,30 @@ where
     while let Some(item) = stream.next().await {
         match item {
             Ok(Either::Right(row)) => {
-                if !columns_reported {
+                if !result_started {
                     let cols: Vec<ColumnMeta> = row.columns().iter().map(column_meta).collect();
                     on_start(QueryStart {
                         columns: cols,
                         backend_pid,
+                        result_index,
                     });
-                    columns_reported = true;
+                    result_started = true;
+                    any_result = true;
                 }
                 batch.push(row_to_json(&row));
                 total_rows += 1;
                 current_produced_rows = true;
                 if batch.len() >= BATCH_SIZE {
                     let drained = std::mem::replace(&mut batch, Vec::with_capacity(BATCH_SIZE));
-                    on_batch(drained);
+                    on_batch(result_index, drained);
                 }
             }
             Ok(Either::Left(qr)) => {
-                // Flush any pending rows so the UI sees them before the
-                // command summary arrives.
+                // Flush pending rows *before* advancing result_index, so they
+                // are attributed to the statement that produced them.
                 if !batch.is_empty() {
                     let drained = std::mem::replace(&mut batch, Vec::with_capacity(BATCH_SIZE));
-                    on_batch(drained);
+                    on_batch(result_index, drained);
                 }
                 if !current_produced_rows {
                     on_command(CommandResult {
@@ -156,6 +174,12 @@ where
                     });
                     total_commands += 1;
                 }
+                // Only a statement that actually opened a result set consumes
+                // an index; DDL and UPDATEs in between must not leave gaps.
+                if result_started {
+                    result_index += 1;
+                }
+                result_started = false;
                 stmt_index += 1;
                 current_produced_rows = false;
             }
@@ -167,15 +191,16 @@ where
         }
     }
     if !batch.is_empty() {
-        on_batch(batch);
+        on_batch(result_index, batch);
     }
 
     // Nothing row-producing in the batch — tell the UI we're done with empty
     // columns so it can render a command-only summary.
-    if !columns_reported {
+    if !any_result {
         on_start(QueryStart {
             columns: Vec::new(),
             backend_pid,
+            result_index: 0,
         });
     }
 
